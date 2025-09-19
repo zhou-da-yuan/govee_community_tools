@@ -16,3 +16,9 @@ BASE_HEADERS = {
     'clientId': '5e972a68a408cada',
     'Content-Type': 'application/json',
 }
+
+# 👇 新增：默认操作延迟（秒）
+DEFAULT_DELAY = {
+    'min': 2,
+    'max': 5
+}

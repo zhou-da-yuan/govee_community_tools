@@ -1,5 +1,6 @@
 # govee_community_tool/gui/pages/account_tool.py
-
+import random
+import time
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from gui.widgets.log_text import LogText
@@ -26,6 +27,20 @@ class AccountToolPage(ttk.Frame):
         info_frame = ttk.Frame(self)
         info_frame.pack(fill=tk.X, pady=(0, 10))
         ttk.Label(info_frame, text=f"📦 当前账号数: {self.total_accounts}", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+
+        # 添加延迟设置
+        delay_frame = ttk.Frame(self)
+        delay_frame.pack(pady=5)
+
+        tk.Label(delay_frame, text="验证延迟 (最小秒):").pack(side=tk.LEFT)
+        self.min_validate_delay = tk.Entry(delay_frame, width=8)
+        self.min_validate_delay.insert(0, "1")
+        self.min_validate_delay.pack(side=tk.LEFT, padx=5)
+
+        tk.Label(delay_frame, text="最大秒):").pack(side=tk.LEFT)
+        self.max_validate_delay = tk.Entry(delay_frame, width=8)
+        self.max_validate_delay.insert(0, "3")
+        self.max_validate_delay.pack(side=tk.LEFT, padx=5)
 
         btn_frame = ttk.Frame(self)
         btn_frame.pack(pady=10)
@@ -64,32 +79,45 @@ class AccountToolPage(ttk.Frame):
             messagebox.showwarning("⚠️ 警告", "请先加载账号！")
             return
 
+        try:
+            min_delay = float(self.min_validate_delay.get().strip())
+            max_delay = float(self.max_validate_delay.get().strip())
+            if min_delay < 0 or max_delay < 0 or min_delay > max_delay:
+                raise ValueError
+        except:
+            messagebox.showwarning("⚠️ 警告", "验证延迟格式错误！")
+            return
+
         self.log(f"🔍 开始验证 {self.total_accounts} 个账号...")
         self.valid_accounts = []
         base_url = self.get_base_url()
 
         thread = threading.Thread(
             target=self.run_validation,
-            args=(base_url,),
+            args=(base_url, min_delay, max_delay),
             daemon=True
         )
         thread.start()
 
-    def run_validation(self, base_url):
+    def run_validation(self, base_url, min_delay, max_delay):
         success_count = 0
         for idx, acc in enumerate(self.accounts, 1):
             email = acc['email']
             try:
                 session = self.session_manager.get_session()
-                session.headers.update({'Authorization': ''})  # 清除旧 token
+                session.headers.update({'Authorization': ''})
                 token = login(self.session_manager, acc['email'], acc['password'], base_url)
                 self.log(f"[{idx}/{self.total_accounts}] ✅ {email} 登录成功")
                 self.valid_accounts.append(acc)
                 success_count += 1
             except Exception as e:
                 self.log(f"[{idx}/{self.total_accounts}] ❌ {email} 失败: {str(e)}")
-            # 控制频率
-            self.after(100)  # GUI 更新延迟
+
+            # 👇 添加延迟
+            if idx < self.total_accounts:  # 最后一个不延迟
+                delay = random.uniform(min_delay, max_delay)
+                self.log(f"⏸️  等待 {delay:.1f} 秒...")
+                time.sleep(delay)
 
         self.log(f"\n🎉 验证完成！共 {self.total_accounts} 个账号，有效 {success_count} 个。\n")
 

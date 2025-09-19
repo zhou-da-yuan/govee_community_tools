@@ -59,6 +59,17 @@ class BatchOperationsPage(ttk.Frame):
         self.num_accounts_entry.insert(0, str(min(5, self.total_accounts)))
         self.num_accounts_entry.grid(row=1, column=1, padx=5, pady=5)
 
+        # 添加延迟设置
+        tk.Label(input_frame, text="延迟 (最小秒):").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.min_delay_entry = tk.Entry(input_frame, width=10, font=("Consolas", 10))
+        self.min_delay_entry.insert(0, "2")
+        self.min_delay_entry.grid(row=2, column=1, sticky=tk.W, padx=5)
+
+        tk.Label(input_frame, text="延迟 (最大秒):").grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.max_delay_entry = tk.Entry(input_frame, width=10, font=("Consolas", 10))
+        self.max_delay_entry.insert(0, "5")
+        self.max_delay_entry.grid(row=3, column=1, sticky=tk.W, padx=5)
+
         btn_frame = ttk.Frame(self)
         btn_frame.pack(pady=10)
 
@@ -93,6 +104,16 @@ class BatchOperationsPage(ttk.Frame):
         target_id = self.target_id_entry.get().strip()
         num_input = self.num_accounts_entry.get().strip()
 
+        # 获取延迟
+        try:
+            min_delay = float(self.min_delay_entry.get().strip())
+            max_delay = float(self.max_delay_entry.get().strip())
+            if min_delay < 0 or max_delay < 0 or min_delay > max_delay:
+                raise ValueError
+        except:
+            messagebox.showwarning("⚠️ 警告", "延迟必须为非负数，且最小 ≤ 最大！")
+            return
+
         if not target_id:
             messagebox.showwarning("⚠️ 警告", "请输入目标ID！")
             return
@@ -107,15 +128,16 @@ class BatchOperationsPage(ttk.Frame):
         selected_accounts = self.accounts[:num_accounts]
         op_name = self.op_map[choice]
         self.log(f"🚀 开始执行: {op_name} | ID: {target_id} | 账号数: {num_accounts}")
+        self.log(f"⏱️  操作延迟: {min_delay:.1f} ~ {max_delay:.1f} 秒")
 
         thread = threading.Thread(
             target=self.run_operation,
-            args=(choice, op_name, target_id, selected_accounts),
+            args=(choice, op_name, target_id, selected_accounts, min_delay, max_delay),
             daemon=True
         )
         thread.start()
 
-    def run_operation(self, op_key, op_name, target_id, accounts):
+    def run_operation(self, op_key, op_name, target_id, accounts, min_delay, max_delay):
         success_count = 0
         base_url = self.get_base_url()
 
@@ -129,7 +151,10 @@ class BatchOperationsPage(ttk.Frame):
                     self.log(f"✅ {op_name} 成功")
                 else:
                     self.log(f"❌ {op_name} 失败")
-                time.sleep(random.uniform(2, 5))
+                # 👇 使用传入的延迟
+                delay = random.uniform(min_delay, max_delay)
+                self.log(f"⏸️  等待 {delay:.1f} 秒...")
+                time.sleep(delay)
             except Exception as e:
                 self.log(f"🚫 错误: {str(e)}")
                 continue
