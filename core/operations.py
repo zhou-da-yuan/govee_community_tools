@@ -1,7 +1,8 @@
 # govee_community_tool/core/operations.py
+import logging
 
 from core.session_manager import SessionManager
-
+from utils.history import save_history
 
 OPERATIONS = {
     "complaint_topic": {
@@ -63,7 +64,24 @@ def execute_operation(op_key: str, session_manager: SessionManager, token: str, 
             payload = op["payload"](target_id)
             res = session.post(url, headers=headers, json=payload)
 
+        # 记录历史
+        save_history({
+            "operation": op["name"],
+            "email":  session.headers.get("email", "unknown") ,
+            "target_id": target_id,
+            "result": "success" if res.status_code == 200 and res.json().get("status") == 200 else "failed",
+            "details": f"HTTP {res.json()}"
+        })
+
         return res.status_code == 200 and res.json().get("status") == 200
     except Exception as e:
         print(f"❌ 执行操作失败: {e}")
+        save_history({
+            "operation": op["name"],
+            "email":  session.headers.get("X-User-Email", "unknown") ,
+            "target_id": target_id,
+            "result": "failed",
+            "details": str(e)
+        })
+        logging.error(f"操作失败: {op_key}, 错误: {str(e)}")
         return False

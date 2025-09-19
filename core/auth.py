@@ -18,5 +18,9 @@ def login(session_manager: SessionManager, email: str, password: str, base_url: 
     response = session.post(url, json=payload)
     result = response.json()
     if result.get("status") == 200:
+
+        # 添加操作记录
+        session.headers.update({"email": email})
+
         return result['client']['token']
     raise Exception(f"登录失败: {result}")

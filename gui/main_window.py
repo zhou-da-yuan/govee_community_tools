@@ -6,7 +6,8 @@ from tkinter import ttk, messagebox
 from gui.pages.account_tool import AccountToolPage
 from gui.pages.batch_page import BatchOperationsPage
 from gui.pages.single_account import SingleAccountOperationsPage
-
+# 操作记录
+from gui.pages.history_page import OperationHistoryPage
 
 class MainWindow:
     def __init__(self, root):
@@ -65,6 +66,7 @@ class MainWindow:
             ("📦 批量账号操作", BatchOperationsPage),
             ("👤 单账号操作", SingleAccountOperationsPage),
             ("🔧 账号工具", AccountToolPage),
+            ("📜 操作历史", OperationHistoryPage),  # 新增操作记录
         ]
 
         for text, page_class in pages:
