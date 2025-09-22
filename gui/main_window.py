@@ -75,7 +75,7 @@ class MainWindow:
         self.menu_buttons = {}
         pages = [
             ("📦 批量账号操作", BatchOperationsPage),
-            ("👤 账号批量操作", SingleAccountPage),
+            ("👤 账号操作", SingleAccountPage),
             ("🔧 账号工具", AccountToolPage),
             ("📜 操作历史", OperationHistoryPage),  # 新增操作记录
         ]

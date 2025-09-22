@@ -2,14 +2,17 @@
 
 import tkinter as tk
 from tkinter import ttk, messagebox
+
+from gui.widgets.aid_popup import AidPopup
 from gui.widgets.log_text import LogText
 from core.auth import login
-from core.operations import OPERATIONS
+from core.operations import OPERATIONS, get_user_aid
 from core.operations import execute_operation
 from core.session_manager import SessionManager
 import threading
 import time
 import random
+from core.session_state import session_state
 
 
 class SingleAccountPage(ttk.Frame):
@@ -31,10 +34,16 @@ class SingleAccountPage(ttk.Frame):
         tk.Label(account_frame, text="📧 邮箱:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=5)
         self.email_entry = tk.Entry(account_frame, width=30, font=("Consolas", 10))
         self.email_entry.grid(row=0, column=1, padx=5, pady=5)
+        # ✅ 启动时恢复上次输入
+        if session_state.email:
+            self.email_entry.insert(0, session_state.email)
 
         tk.Label(account_frame, text="🔒 密码:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=5)
         self.password_entry = tk.Entry(account_frame, width=30, font=("Consolas", 10), show="*")
         self.password_entry.grid(row=1, column=1, padx=5, pady=5)
+        # ✅ 启动时恢复上次密码
+        if session_state.password:
+            self.password_entry.insert(0, session_state.password)
 
         # 2. 操作选择区
         op_frame = ttk.LabelFrame(self, text="⚙️ 操作选择", padding=15)
@@ -59,6 +68,10 @@ class SingleAccountPage(ttk.Frame):
                    command=self.start_operation).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="🗑️ 清空日志", command=self.clear_log).pack(side=tk.LEFT, padx=5)
 
+        # 新增：获取 AID 按钮
+        ttk.Button(btn_frame, text="🔍 获取 AID",
+                   command=self.get_aid).pack(side=tk.LEFT, padx=5)
+
         # 5. 日志输出
         log_frame = ttk.LabelFrame(self, text="📝 运行日志", padding=10)
         log_frame.pack(fill=tk.BOTH, expand=True, pady=10)
@@ -73,7 +86,6 @@ class SingleAccountPage(ttk.Frame):
             k: v for k, v in OPERATIONS.items()
             if k in [
                 "create_post",
-
             ]
         }
         self.op_map = {key: info["name"] for key, info in allowed_ops.items()}
@@ -142,6 +154,10 @@ class SingleAccountPage(ttk.Frame):
         if not op_key:
             messagebox.showerror("❌ 错误", "未选择有效操作")
             return
+
+        # ✅ 保存到会话状态（用于下次进入页面时恢复）
+        session_state.email = email
+        session_state.password = password
 
         base_url = self.get_base_url()
 
@@ -232,6 +248,76 @@ class SingleAccountPage(ttk.Frame):
                 continue
             time.sleep(random.uniform(1.5, 3.5))
         self.log(f"\n🎉 发帖完成！成功 {success_count}/{count} 篇。\n")
+
+    def get_aid(self):
+        """点击按钮：获取 AID 并弹窗显示"""
+        email = self.email_entry.get().strip()
+        password = self.password_entry.get().strip()
+
+        if not email or not password:
+            messagebox.showerror("❌ 错误", "请先输入邮箱和密码")
+            return
+
+        base_url = self.get_base_url()
+
+        try:
+            # 登录获取 token
+            token = login(self.session_manager, email, password, base_url)
+            self.log("✅ 登录成功，正在获取 AID...")
+
+            # 调用函数获取 AID
+            result = get_user_aid(self.session_manager, token, base_url)
+
+            if result["success"]:
+                aid = result["aid"]
+                self.log(f"🎯 获取 AID 成功: {aid}")
+                # 使用新封装的 AidPopup 显示 AID
+                AidPopup(self, aid)
+            else:
+                self.log(f"❌ 获取 AID 失败: {result['msg']}")
+                messagebox.showerror("❌ 获取失败", result["msg"])
+
+        except Exception as e:
+            self.log(f"❌ 执行异常: {str(e)}")
+            messagebox.showerror("❌ 错误", str(e))
+
+    def show_aid_popup(self, aid: str):
+        """
+        弹出窗口显示 AID，并提供复制按钮
+        """
+        popup = tk.Toplevel(self)
+        popup.title("🎯 获取到的 AID")
+        popup.geometry("400x180")
+        popup.resizable(False, False)
+        popup.transient(self)  # 置于主窗口上方
+        popup.grab_set()  # 模态窗口
+
+        # 居中显示
+        popup.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() // 2) - (popup.winfo_width() // 2)
+        y = self.winfo_rooty() + (self.winfo_height() // 2) - (popup.winfo_height() // 2)
+        popup.geometry(f"+{x}+{y}")
+
+        # 内容区域
+        ttk.Label(popup, text="您的 AID 如下：", font=("微软雅黑", 10)).pack(pady=(15, 5))
+
+        # 显示 AID（可选中）
+        aid_var = tk.StringVar(value=aid)
+        entry = ttk.Entry(popup, textvariable=aid_var, width=40, state='readonly', font=("Consolas", 10))
+        entry.pack(padx=20, pady=10)
+
+        # 按钮区域
+        btn_frame = ttk.Frame(popup)
+        btn_frame.pack(pady=10)
+
+        def copy_and_close():
+            self.clipboard_clear()
+            self.clipboard_append(aid)
+            self.log("📋 AID 已复制到剪贴板")
+            popup.destroy()
+
+        ttk.Button(btn_frame, text="📋 复制并关闭", command=copy_and_close).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="❌ 关闭", command=popup.destroy).pack(side=tk.LEFT, padx=5)
 
     def get_base_url(self):
         from config.settings import ENV_CONFIG

@@ -58,7 +58,12 @@ OPERATIONS = {
         "url": lambda base: f"{base}/bff-app/v1/community/posting/details",
         "method": "post"
         # payload 移除，由内部 build_create_post_payload 处理
-    }
+    },
+    # "get_aid": {
+    #     "name": "获取 AID",
+    #     "url": lambda base: f"{base}/bi/rest/v1/user-informations",
+    #     "method": "get"
+    # },
 }
 
 
@@ -224,3 +229,45 @@ def execute_operation(
             "details": str(e)
         })
         return False
+
+def get_user_aid(session_manager: SessionManager, token: str, base_url: str) -> dict:
+    """
+    获取用户的 AID (identity)
+    :param session_manager: 会话管理器
+    :param token: 登录 token
+    :param base_url: 环境 base_url
+    :return: { "success": bool, "aid": str 或 None, "msg": str }
+    """
+    session = session_manager.get_session()
+    url = f"{base_url}/bi/rest/v1/user-informations"
+    headers = {**session.headers, 'Authorization': f'Bearer {token}'}
+
+    try:
+        response = session.get(url, headers=headers)
+        if response.status_code == 200 and response.json().get("status") == 200:
+            data = response.json()
+            identity = data.get("data", {}).get("identity")
+            if identity:
+                return {
+                    "success": True,
+                    "aid": identity,
+                    "msg": "获取成功"
+                }
+            else:
+                return {
+                    "success": False,
+                    "aid": None,
+                    "msg": "响应中未找到 identity 字段: " + str(data)
+                }
+        else:
+            return {
+                "success": False,
+                "aid": None,
+                "msg": f"HTTP {response.status_code}: {response.text}"
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "aid": None,
+            "msg": f"请求异常: {str(e)}"
+        }
