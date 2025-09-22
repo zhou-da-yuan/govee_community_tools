@@ -297,5 +297,27 @@
       "message": "",
       "status": 200
     }
+  },
+  {
+    "timestamp": "2025-09-22T18:13:55.469583",
+    "date": "2025-09-22",
+    "time": "18:13:55",
+    "operation": "发布帖子",
+    "email": "szid76@dcpa.net",
+    "target_id": 10013957,
+    "result": "success",
+    "env": "dev",
+    "details": "发布成功 | Post ID: 10013957"
+  },
+  {
+    "timestamp": "2025-09-22T18:14:42.253304",
+    "date": "2025-09-22",
+    "time": "18:14:42",
+    "operation": "发布帖子",
+    "email": "testpoints@powerscrews.com",
+    "target_id": 10013958,
+    "result": "success",
+    "env": "dev",
+    "details": "发布成功 | Post ID: 10013958"
   }
 ]

@@ -261,9 +261,13 @@ class SingleAccountPage(ttk.Frame):
         base_url = self.get_base_url()
 
         try:
-            # 登录获取 token
-            token = login(self.session_manager, email, password, base_url)
-            self.log("✅ 登录成功，正在获取 AID...")
+            # 使用 SessionManager 缓存机制
+            result = self.session_manager.login_user(email, password, base_url)
+            if not result["success"]:
+                messagebox.showerror("❌ 登录失败", result["msg"])
+                return
+
+            token = result["token"]
 
             # 调用函数获取 AID
             result = get_user_aid(self.session_manager, token, base_url)

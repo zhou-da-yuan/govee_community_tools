@@ -1,10 +1,9 @@
 # govee_community_tool/core/auth.py
 
 import time
-from core.session_manager import SessionManager
 
 
-def login(session_manager: SessionManager, email: str, password: str, base_url: str) -> str:
+def login(session_manager, email: str, password: str, base_url: str) -> str:
     session = session_manager.get_session()
     url = f"{base_url}/account/rest/account/v1/login"
     payload = {
@@ -18,7 +17,6 @@ def login(session_manager: SessionManager, email: str, password: str, base_url: 
     response = session.post(url, json=payload)
     result = response.json()
     if result.get("status") == 200:
-
         # 添加操作记录
         session.headers.update({"X-User-Email": email})
 
