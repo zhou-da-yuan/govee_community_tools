@@ -1,5 +1,5 @@
 # govee_community_tool/gui/main_window.py
-
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -8,6 +8,8 @@ from gui.pages.batch_page import BatchOperationsPage
 from gui.pages.single_account import SingleAccountPage
 # 操作记录
 from gui.pages.history_page import OperationHistoryPage
+from config.__version__ import __version__, __author__, __email__
+
 
 class MainWindow:
     def __init__(self, root):
@@ -27,7 +29,9 @@ class MainWindow:
 
     def load_default_accounts(self):
         from utils.file_loader import load_accounts
-        default_path = "resources/accounts.json"
+        # default_path = "resources/accounts.json"
+        from utils import file_loader
+        default_path = file_loader.resource_path("resources/accounts.json")
         return load_accounts(default_path) or [
             {"email": "mmmm27@somoj.com", "password": "151515jr"},
             {"email": "pppp551@somoj.com", "password": "77777777c"},
@@ -50,6 +54,13 @@ class MainWindow:
         env_menu.add_command(label="PDA 环境", command=lambda: self.switch_env("pda"))
         menubar.add_cascade(label="🌍 环境切换", menu=env_menu)
 
+        # 帮助菜单
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="帮助", menu=help_menu)
+        help_menu.add_command(label="使用帮助", command=self.show_help)
+        help_menu.add_separator()
+        help_menu.add_command(label="关于", command=self.show_about)
+
     def setup_layout(self):
         paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -64,7 +75,7 @@ class MainWindow:
         self.menu_buttons = {}
         pages = [
             ("📦 批量账号操作", BatchOperationsPage),
-            ("👤 单账号操作", SingleAccountPage),
+            ("👤 账号批量操作", SingleAccountPage),
             ("🔧 账号工具", AccountToolPage),
             ("📜 操作历史", OperationHistoryPage),  # 新增操作记录
         ]
@@ -126,6 +137,56 @@ class MainWindow:
         if self.current_page and hasattr(self.current_page, "on_environment_changed"):
             self.current_page.on_environment_changed(env)
         messagebox.showinfo("切换成功", f"已切换到 {env.upper()} 环境")
+
+    def show_help(self):
+        """显示使用帮助弹窗"""
+        help_window = tk.Toplevel(self.root)
+        help_window.title("📘 使用帮助")
+        help_window.geometry("800x600")
+        help_window.transient(self.root)
+        help_window.grab_set()
+
+        # 使用 Text + Scrollbar 显示帮助内容
+        text_frame = ttk.Frame(help_window)
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        text_widget = tk.Text(
+            text_frame,
+            wrap=tk.WORD,
+            font=("微软雅黑", 10),
+            bg="#f9f9f9",
+            fg="#333"
+        )
+        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=text_widget.yview)
+        text_widget.configure(yscrollcommand=scrollbar.set)
+
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # 读取帮助文件
+        help_file = os.path.join(os.path.dirname(__file__), "../resources/help.md")
+        try:
+            with open(help_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            text_widget.insert(tk.END, content)
+        except Exception as e:
+            text_widget.insert(tk.END, f"❌ 加载帮助文件失败：\n{str(e)}")
+
+        text_widget.config(state=tk.DISABLED)  # 只读
+
+        # 添加关闭按钮
+        ttk.Button(help_window, text="关闭", command=help_window.destroy).pack(pady=5)
+
+    def show_about(self):
+        """关于"""
+        messagebox.showinfo(
+            "关于",
+            f"Govee 社区工具 v{__version__}\n\n"
+            "功能：自动化发帖、点赞、投诉等操作\n"
+            f"作者：{__author__}\n"
+            f"邮箱：{__email__}\n"
+            # "GitHub: github.com/yourname/govee-tool"
+        )
 
     def on_environment_changed(self, new_env):
         self.current_env = new_env
