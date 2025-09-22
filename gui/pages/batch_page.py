@@ -146,7 +146,7 @@ class BatchOperationsPage(ttk.Frame):
             try:
                 token = login(self.session_manager, acc['email'], acc['password'], base_url)
                 self.log("✅ 登录成功")
-                if execute_operation(op_key, self.session_manager, token, target_id, base_url):
+                if execute_operation(op_key, self.session_manager, token, base_url, target_id=target_id):
                     success_count += 1
                     self.log(f"✅ {op_name} 成功")
                 else:

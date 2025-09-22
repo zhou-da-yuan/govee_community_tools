@@ -1,9 +1,14 @@
 # govee_community_tool/core/operations.py
 import logging
+import json
+import time
+import random
+from typing import Any
 
 from core.session_manager import SessionManager
 from utils.history import save_history
 
+# 所有操作定义
 OPERATIONS = {
     "complaint_topic": {
         "name": "投诉话题",
@@ -46,42 +51,176 @@ OPERATIONS = {
         "url": lambda base: f"{base}/appco/v1/complaints",
         "method": "post",
         "payload": lambda pid: {"content": "", "causeId": 1, "type": 1, "id": int(pid)}
+    },
+    # 注意：create_post 不再需要 payload 函数，由 execute_operation 处理
+    "create_post": {
+        "name": "发布帖子",
+        "url": lambda base: f"{base}/bff-app/v1/community/posting/details",
+        "method": "post"
+        # payload 移除，由内部 build_create_post_payload 处理
     }
 }
 
 
-def execute_operation(op_key: str, session_manager: SessionManager, token: str, target_id: str, base_url: str) -> bool:
-    op = OPERATIONS[op_key]
+def build_create_post_payload(title_suffix: str, content_text: str):
+    """
+    构建发帖 payload，contentV2 为字符串化 JSON
+    """
+    content_html = f"<p class=\"new-posting-content\">{content_text}</p>"
+    content_v2_dict = {
+        "content": content_text,
+        "contentHTML": content_html,
+        "uploadImage": []
+    }
+    content_v2_str = json.dumps(content_v2_dict, ensure_ascii=False)
+
+    return {
+        "postType": 1,
+        "title": f"AutoPost-{title_suffix}",
+        "h5Url": "",
+        "labelId": None,
+        "circleId": -1,
+        "atUsers": [],
+        "content": "",
+        "contentV2": content_v2_str,
+        "urls": [],
+        "products": [],
+        "draftId": -1,
+        "topicId": -1,
+        "topicName": "",
+        "topicDes": "",
+        "needVote": False,
+        "voteContent": {}
+    }
+
+
+def execute_operation(
+        op_key: str,
+        session_manager: SessionManager,
+        token: str,
+        base_url: str,
+        **kwargs  # 支持额外参数，如 count, content, target_id 等
+) -> bool | dict[str, int | bool | list[
+    dict[str, str | bool | Any] | dict[str, str | bool] | dict[str, str | bool] | dict[str, str | bool]]]:
+    """
+    统一执行操作入口
+    支持：
+        - 单次操作（target_id）
+        - 批量操作（count, content）
+    """
+    op = OPERATIONS.get(op_key)
+    if not op:
+        logging.error(f"未知操作: {op_key}")
+        return False
+
     session = session_manager.get_session()
     headers = {**session.headers, 'Authorization': f'Bearer {token}'}
     url = op["url"](base_url)
+    op_name = op["name"]
 
     try:
-        if op["method"] == "get":
-            params = op["params"](target_id)
-            res = session.get(url, headers=headers, params=params)
+        if op_key == "create_post":
+            # 处理批量发帖
+            count = kwargs.get("count", 1)
+            content_text = kwargs.get("content", "This is an automatically published test content.。")
+            success_count = 0
+            results = []
+
+            for i in range(count):
+                title_suffix = f"{int(time.time()) % 10000}-{i + 1}"
+                payload = build_create_post_payload(title_suffix, content_text)
+
+                try:
+                    res = session.post(url, headers=headers, json=payload)
+                    if res.status_code == 200:
+                        data = res.json()
+                        if data.get("status") == 200:
+                            post_id = data.get("data", {}).get("id", "未知")
+                            result = {
+                                "success": True,
+                                "post_id": post_id,
+                                "msg": f"发布成功 | Post ID: {post_id}"
+                            }
+                        else:
+                            msg = data.get("msg", "未知错误")
+                            result = {
+                                "success": False,
+                                "post_id": "失败",
+                                "msg": f"发布失败: {msg}"
+                            }
+                    else:
+                        result = {
+                            "success": False,
+                            "post_id": "失败",
+                            "msg": f"HTTP {res.status_code}"
+                        }
+
+                except Exception as e:
+                    result = {
+                        "success": False,
+                        "post_id": "异常",
+                        "msg": f"异常: {str(e)}"
+                    }
+                    logging.error(f"发帖异常 (第{i + 1}条): {str(e)}")
+
+                    # 无论成功失败都记录历史
+                save_history({
+                    "operation": op_name,
+                    "email": session.headers.get("X-User-Email", "unknown"),
+                    "target_id": result["post_id"],
+                    "result": "success" if result["success"] else "failed",
+                    "details": result["msg"]
+                })
+
+                results.append(result)
+                time.sleep(random.uniform(1.5, 3.5))
+
+                # 统计
+            success_count = sum(1 for r in results if r["success"])
+            all_success = success_count == count
+            any_success = success_count > 0
+
+            return {
+                "success": any_success,  # 至少一条成功
+                "total": count,
+                "success_count": success_count,
+                "all_success": all_success,
+                "results": results
+            }
+
         else:
-            payload = op["payload"](target_id)
-            res = session.post(url, headers=headers, json=payload)
+            # 处理其他单次操作
+            target_id = kwargs.get("target_id")
+            if not target_id:
+                raise ValueError("缺少 target_id")
 
-        # 记录历史
-        save_history({
-            "operation": op["name"],
-            "email":  session.headers.get("email", "unknown") ,
-            "target_id": target_id,
-            "result": "success" if res.status_code == 200 and res.json().get("status") == 200 else "failed",
-            "details": f"HTTP {res.json()}"
-        })
+            if op["method"] == "get":
+                params = op["params"](target_id)
+                res = session.get(url, headers=headers, params=params)
+            else:
+                payload = op["payload"](target_id)
+                res = session.post(url, headers=headers, json=payload)
 
-        return res.status_code == 200 and res.json().get("status") == 200
+            result = res.status_code == 200 and res.json().get("status") == 200
+
+            # 记录历史
+            save_history({
+                "operation": op_name,
+                "email": session.headers.get("X-User-Email", "unknown"),
+                "target_id": target_id,
+                "result": "success" if result else "failed",
+                "details": res.json()
+            })
+
+            return result
+
     except Exception as e:
-        print(f"❌ 执行操作失败: {e}")
+        logging.error(f"操作执行失败 [{op_name}]: {str(e)}")
         save_history({
-            "operation": op["name"],
-            "email":  session.headers.get("X-User-Email", "unknown") ,
-            "target_id": target_id,
+            "operation": op_name,
+            "email": session.headers.get("X-User-Email", "unknown"),
+            "target_id": kwargs.get("target_id", "N/A"),
             "result": "failed",
             "details": str(e)
         })
-        logging.error(f"操作失败: {op_key}, 错误: {str(e)}")
         return False

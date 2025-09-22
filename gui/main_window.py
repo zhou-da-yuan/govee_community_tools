@@ -5,7 +5,7 @@ from tkinter import ttk, messagebox
 
 from gui.pages.account_tool import AccountToolPage
 from gui.pages.batch_page import BatchOperationsPage
-from gui.pages.single_account import SingleAccountOperationsPage
+from gui.pages.single_account import SingleAccountPage
 # 操作记录
 from gui.pages.history_page import OperationHistoryPage
 
@@ -64,7 +64,7 @@ class MainWindow:
         self.menu_buttons = {}
         pages = [
             ("📦 批量账号操作", BatchOperationsPage),
-            ("👤 单账号操作", SingleAccountOperationsPage),
+            ("👤 单账号操作", SingleAccountPage),
             ("🔧 账号工具", AccountToolPage),
             ("📜 操作历史", OperationHistoryPage),  # 新增操作记录
         ]
@@ -106,7 +106,7 @@ class MainWindow:
                 self.current_env,
                 self.on_environment_changed
             )
-        elif PageClass == SingleAccountOperationsPage:
+        elif PageClass == SingleAccountPage:
             self.current_page = PageClass(
                 self.content_frame,
                 self.current_env,

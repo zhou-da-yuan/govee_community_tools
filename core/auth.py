@@ -20,7 +20,7 @@ def login(session_manager: SessionManager, email: str, password: str, base_url: 
     if result.get("status") == 200:
 
         # 添加操作记录
-        session.headers.update({"email": email})
+        session.headers.update({"X-User-Email": email})
 
         return result['client']['token']
     raise Exception(f"登录失败: {result}")
