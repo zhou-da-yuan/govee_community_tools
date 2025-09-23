@@ -3,6 +3,8 @@ import random
 import time
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+
+from core.account_generator import AccountGenerator
 from gui.widgets.log_text import LogText
 from core.auth import login
 from core.session_manager import SessionManager
@@ -10,6 +12,8 @@ from utils.file_loader import load_accounts
 import threading
 import os
 import json
+
+from utils.logger import SimpleLogger
 
 
 class AccountToolPage(ttk.Frame):
@@ -26,7 +30,8 @@ class AccountToolPage(ttk.Frame):
     def setup_ui(self):
         info_frame = ttk.Frame(self)
         info_frame.pack(fill=tk.X, pady=(0, 10))
-        ttk.Label(info_frame, text=f"📦 当前账号数: {self.total_accounts}", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+        ttk.Label(info_frame, text=f"📦 当前账号数: {self.total_accounts}", font=("Arial", 10, "bold")).pack(
+            side=tk.LEFT)
 
         # 添加延迟设置
         delay_frame = ttk.Frame(self)
@@ -45,9 +50,20 @@ class AccountToolPage(ttk.Frame):
         btn_frame = ttk.Frame(self)
         btn_frame.pack(pady=10)
 
+        # 在 delay_frame 后添加 generate_frame
+        generate_frame = ttk.Frame(self)
+        generate_frame.pack(pady=5)
+
+        tk.Label(generate_frame, text="生成数量:").pack(side=tk.LEFT)
+        self.generate_count = tk.Entry(generate_frame, width=8)
+        self.generate_count.insert(0, "5")
+        self.generate_count.pack(side=tk.LEFT, padx=5)
+
         ttk.Button(btn_frame, text="📁 加载账号文件", command=self.load_accounts_file).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="🔍 验证全部账号", style="Accent.TButton",
                    command=self.validate_all_accounts).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="🆕 生成账号", style="Success.TButton",
+                   command=self.generate_accounts_gui).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="💾 导出有效账号", command=self.export_valid_accounts).pack(side=tk.LEFT, padx=5)
 
         # 日志
@@ -138,6 +154,39 @@ class AccountToolPage(ttk.Frame):
                 messagebox.showinfo("✅ 成功", f"已导出 {len(self.valid_accounts)} 个有效账号到:\n{file_path}")
             except Exception as e:
                 messagebox.showerror("❌ 错误", f"保存失败: {str(e)}")
+
+    def generate_accounts_gui(self):
+        try:
+            count = int(self.generate_count.get().strip())
+            if count <= 0 or count > 100:
+                messagebox.showwarning("⚠️ 输入错误", "请输入 1-100 之间的数字")
+                return
+        except:
+            messagebox.showwarning("⚠️ 输入错误", "请输入有效数字")
+            return
+
+        if messagebox.askyesno("确认", f"即将生成 {count} 个账号，确认继续？"):
+            thread = threading.Thread(
+                target=self.run_generate,
+                args=(count,),
+                daemon=True
+            )
+            thread.start()
+
+    def run_generate(self, count: int):
+        base_url = self.get_base_url()
+        # ✅ 包装成统一接口
+        logger = SimpleLogger(self.log_widget.log)  # 传入 LogText.log 方法
+
+        generator = AccountGenerator(base_url, log_widget=logger)  # 注意是 log=logger
+        try:
+            generated = generator.generate_accounts(count)
+            self.accounts.extend(generated)
+            self.valid_accounts.extend(generated)  # 生成即有效
+            self.total_accounts = len(self.accounts)
+            self.log(f"\n🎉 成功生成 {len(generated)} 个账号，当前共 {self.total_accounts} 个账号。\n")
+        except Exception as e:
+            self.log(f"❌ 生成过程中发生错误: {str(e)}")
 
     def get_base_url(self):
         from config.settings import ENV_CONFIG
