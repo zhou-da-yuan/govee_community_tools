@@ -29,16 +29,33 @@ class MainWindow:
 
     def load_default_accounts(self):
         from utils.file_loader import load_accounts
-        # default_path = "resources/accounts.json"
+        # 根据当前环境选择文件
+        filename = f"accounts_{self.current_env}.json"
+        file_path = os.path.join("resources", filename)
+
+        # 使用 resource_path 处理打包后路径
         from utils import file_loader
-        default_path = file_loader.resource_path("resources/accounts.json")
-        return load_accounts(default_path) or [
-            {"email": "mmmm27@somoj.com", "password": "151515jr"},
-            {"email": "pppp551@somoj.com", "password": "77777777c"},
-            {"email": "hhhh04@somoj.com", "password": "86868686r"},
-            {"email": "zzzz425@somoj.com", "password": "14141414u"},
-            {"email": "ttt88@somoj.com", "password": "595959wk"},
-        ]
+        full_path = file_loader.resource_path(file_path)
+
+        accounts = load_accounts(full_path)
+        if accounts:
+            return accounts
+        else:
+            # fallback 默认账号（按环境提供不同默认值）
+            if self.current_env == "dev":
+                return [
+                    {"email": "mmmm27@somoj.com", "password": "151515jr"},
+                    {"email": "pppp551@somoj.com", "password": "77777777c"},
+                    {"email": "hhhh04@somoj.com", "password": "86868686r"},
+                    {"email": "zzzz425@somoj.com", "password": "14141414u"},
+                    {"email": "ttt88@somoj.com", "password": "595959wk"},
+                ]
+            elif self.current_env == "pda":
+                return [
+                    {"email": "test1@pda.com", "password": "123456"},
+                    {"email": "test2@pda.com", "password": "123456"},
+                ]
+            return []
 
     def setup_styles(self):
         style = ttk.Style()
@@ -132,11 +149,27 @@ class MainWindow:
         if env == self.current_env:
             messagebox.showinfo("提示", f"已在 {env.upper()} 环境")
             return
+
+        # 保存旧环境
+        old_env = self.current_env
         self.current_env = env
+
+        # 更新环境标签
         self.env_label.config(text=f"📍 当前环境: {env.upper()}")
+
+        # 🔁 重新加载该环境的默认账号
+        self.accounts = self.load_default_accounts()
+        self.total_accounts = len(self.accounts)
+
+        # 🔄 如果当前页面支持环境切换，通知它
         if self.current_page and hasattr(self.current_page, "on_environment_changed"):
             self.current_page.on_environment_changed(env)
-        messagebox.showinfo("切换成功", f"已切换到 {env.upper()} 环境")
+
+        # 🔄 如果当前页面是 AccountToolPage 或 BatchOperationsPage，需要刷新账号和 UI
+        if hasattr(self.current_page, 'refresh_accounts'):
+            self.current_page.refresh_accounts(self.accounts, self.total_accounts)
+
+        messagebox.showinfo("切换成功", f"已切换到 {env.upper()} 环境\n并加载 {self.total_accounts} 个账号。")
 
     def show_help(self):
         """显示使用帮助弹窗"""

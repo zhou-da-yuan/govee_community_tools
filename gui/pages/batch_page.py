@@ -30,9 +30,12 @@ class BatchOperationsPage(ttk.Frame):
         return OPERATIONS
 
     def setup_ui(self):
+        # 使用 StringVar 来绑定动态文本
+        self.account_count_var = tk.StringVar(value=f"📦 当前账号数: {self.total_accounts}")
+
         info_frame = ttk.Frame(self)
         info_frame.pack(fill=tk.X, pady=(0, 10))
-        ttk.Label(info_frame, text=f"📦 账号总数: {self.total_accounts}", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+        ttk.Label(info_frame, textvariable=self.account_count_var, font=("Arial", 10, "bold")).pack(side=tk.LEFT)
 
         op_frame = ttk.LabelFrame(self, text="选择操作类型", padding=10)
         op_frame.pack(fill=tk.X, pady=10)
@@ -95,9 +98,21 @@ class BatchOperationsPage(ttk.Frame):
             if accounts:
                 self.accounts = accounts
                 self.total_accounts = len(accounts)
+                self.valid_accounts = []
+                # ✅ 更新 UI 显示
+                self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
                 self.log(f"✅ 成功加载 {self.total_accounts} 个账号：{os.path.basename(path)}")
             else:
                 messagebox.showerror("❌ 加载失败", "账号文件格式错误或为空！")
+
+    def refresh_accounts(self, new_accounts, total_count):
+        """外部调用：刷新账号列表和 UI 显示"""
+        self.accounts = new_accounts.copy()
+        self.total_accounts = total_count
+        self.valid_accounts = []
+        # ✅ 刷新 UI 上的账号数
+        self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
+        self.log(f"🔄 已刷新账号列表，共 {self.total_accounts} 个账号（来自 {self.current_env} 环境）")
 
     def start_operation(self):
         choice = self.choice_var.get()

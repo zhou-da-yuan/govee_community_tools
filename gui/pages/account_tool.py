@@ -28,10 +28,12 @@ class AccountToolPage(ttk.Frame):
         self.setup_ui()
 
     def setup_ui(self):
+        # 使用 StringVar 来绑定动态文本
+        self.account_count_var = tk.StringVar(value=f"📦 当前账号数: {self.total_accounts}")
+
         info_frame = ttk.Frame(self)
         info_frame.pack(fill=tk.X, pady=(0, 10))
-        ttk.Label(info_frame, text=f"📦 当前账号数: {self.total_accounts}", font=("Arial", 10, "bold")).pack(
-            side=tk.LEFT)
+        ttk.Label(info_frame, textvariable=self.account_count_var, font=("Arial", 10, "bold")).pack(side=tk.LEFT)
 
         # 添加延迟设置
         delay_frame = ttk.Frame(self)
@@ -86,9 +88,20 @@ class AccountToolPage(ttk.Frame):
                 self.accounts = accounts
                 self.total_accounts = len(accounts)
                 self.valid_accounts = []
+                # ✅ 更新 UI 显示
+                self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
                 self.log(f"✅ 成功加载 {self.total_accounts} 个账号：{os.path.basename(path)}")
             else:
                 messagebox.showerror("❌ 加载失败", "账号文件格式错误或为空！")
+
+    def refresh_accounts(self, new_accounts, total_count):
+        """外部调用：刷新账号列表和 UI 显示"""
+        self.accounts = new_accounts.copy()
+        self.total_accounts = total_count
+        self.valid_accounts = []
+        # ✅ 刷新 UI 上的账号数
+        self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
+        self.log(f"🔄 已刷新账号列表，共 {self.total_accounts} 个账号（来自 {self.current_env} 环境）")
 
     def validate_all_accounts(self):
         if not self.accounts:
