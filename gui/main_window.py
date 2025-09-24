@@ -55,11 +55,11 @@ class MainWindow:
         menubar.add_cascade(label="🌍 环境切换", menu=env_menu)
 
         # 帮助菜单
-        help_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="帮助", menu=help_menu)
-        help_menu.add_command(label="使用帮助", command=self.show_help)
-        help_menu.add_separator()
-        help_menu.add_command(label="关于", command=self.show_about)
+        # help_menu = tk.Menu(menubar, tearoff=0)
+        # menubar.add_cascade(label="帮助", menu=help_menu)
+        # help_menu.add_command(label="使用帮助", command=self.show_help)
+        # help_menu.add_separator()
+        # help_menu.add_command(label="关于", command=self.show_about)
 
     def setup_layout(self):
         paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
