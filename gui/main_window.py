@@ -83,7 +83,7 @@ class MainWindow:
         paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # 左侧菜单
-        left_frame = ttk.Frame(paned, width=200, relief="sunken")
+        left_frame = ttk.Frame(paned, width=150, relief="sunken")
         left_frame.pack_propagate(False)
         paned.add(left_frame, weight=1)
 

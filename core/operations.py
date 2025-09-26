@@ -3,8 +3,8 @@ import logging
 import json
 import time
 import random
-from typing import Any
-
+from typing import Dict, List, Any
+from config.settings import ADMIN_ENV_CONFIG, POINTS_CONFIG
 from core.session_manager import SessionManager
 from utils.history import save_history
 
@@ -23,7 +23,7 @@ OPERATIONS = {
         "payload": lambda vid: {"content": "", "causeId": 1, "type": 2, "id": int(vid)}
     },
     "like_diy_video": {
-        "name": "点赞DIY视频",
+        "name": "收藏DIY视频",
         "url": lambda base: f"{base}/app/v1/diy-videos/collections",
         "method": "post",
         "payload": lambda vid: {"videoId": int(vid)}
@@ -56,7 +56,9 @@ OPERATIONS = {
     "create_post": {
         "name": "发布帖子",
         "url": lambda base: f"{base}/bff-app/v1/community/posting/details",
-        "method": "post"
+        "method": "post",
+        "support_single":True,
+        "params":["count","content"]
         # payload 移除，由内部 build_create_post_payload 处理
     },
     # "get_aid": {
@@ -64,6 +66,7 @@ OPERATIONS = {
     #     "url": lambda base: f"{base}/bi/rest/v1/user-informations",
     #     "method": "get"
     # },
+
 }
 
 
@@ -147,7 +150,7 @@ def execute_operation(
                                 "msg": f"发布成功 | Post ID: {post_id}"
                             }
                         else:
-                            msg = data.get("msg", "未知错误")
+                            msg = data.get("message", "未知错误")
                             result = {
                                 "success": False,
                                 "post_id": "失败",
@@ -271,3 +274,79 @@ def get_user_aid(session_manager: SessionManager, token: str, base_url: str) -> 
             "aid": None,
             "msg": f"请求异常: {str(e)}"
         }
+
+def execute_grant_points(session_manager, token: str, base_url: str, aid: str, points: int) -> Dict[str, Any]:
+    """积分发放（自动分批，每次最多 5000）"""
+    max_per = POINTS_CONFIG["grant"]["max_per_request"]
+    total = points
+    success_count = 0
+    results = []
+
+    # 分批处理
+    while points > 0:
+        current = min(points, max_per)
+        payload = OPERATIONS["grant_points"]["payload"](aid, current)
+        url = OPERATIONS["grant_points"]["url"](ADMIN_ENV_CONFIG[base_url.split('.')[1]])  # 解析环境
+
+        try:
+            session = session_manager.get_session()
+            headers = {**session.headers, 'Authorization': f'Bearer {token}', 'originFrom': 'erp'}
+            res = session.post(url, json=payload, headers=headers)
+
+            if res.status_code == 200 and res.json().get("status") in [200, 0]:
+                results.append({"success": True, "msg": f"✅ 成功发放 {current} 积分"})
+                success_count += 1
+            else:
+                msg = res.json().get("msg", "未知错误")
+                results.append({"success": False, "msg": f"❌ 发放失败: {msg}"})
+        except Exception as e:
+            results.append({"success": False, "msg": f"❌ 请求异常: {str(e)}"})
+
+        points -= current
+        time.sleep(1)  # 避免太快
+
+    return {
+        "success": success_count > 0,
+        "all_success": success_count == len(results),
+        "total": total,
+        "success_count": success_count,
+        "results": results
+    }
+
+
+def execute_deduct_points(session_manager, token: str, base_url: str, aid: str, points: int) -> Dict[str, Any]:
+    """积分扣除（自动分批，每次最多 500）"""
+    max_per = POINTS_CONFIG["deduct"]["max_per_request"]
+    total = points
+    success_count = 0
+    results = []
+
+    while points > 0:
+        current = min(points, max_per)
+        payload = OPERATIONS["deduct_points"]["payload"](aid, current)
+        url = OPERATIONS["deduct_points"]["url"](ADMIN_ENV_CONFIG[base_url.split('.')[1]])
+
+        try:
+            session = session_manager.get_session()
+            headers = {**session.headers, 'Authorization': f'Bearer {token}', 'originFrom': 'erp'}
+            res = session.post(url, json=payload, headers=headers)
+
+            if res.status_code == 200 and res.json().get("status") in [200, 0]:
+                results.append({"success": True, "msg": f"✅ 成功扣除 {current} 积分"})
+                success_count += 1
+            else:
+                msg = res.json().get("msg", "未知错误")
+                results.append({"success": False, "msg": f"❌ 扣除失败: {msg}"})
+        except Exception as e:
+            results.append({"success": False, "msg": f"❌ 请求异常: {str(e)}"})
+
+        points -= current
+        time.sleep(1)
+
+    return {
+        "success": success_count > 0,
+        "all_success": success_count == len(results),
+        "total": total,
+        "success_count": success_count,
+        "results": results
+    }

@@ -23,6 +23,7 @@ class BatchOperationsPage(ttk.Frame):
         self.session_manager = SessionManager()
 
         self.op_map = {k: v["name"] for k, v in self.get_operations().items()}
+        self.op_map.pop("create_post")
         self.setup_ui()
 
     def get_operations(self):

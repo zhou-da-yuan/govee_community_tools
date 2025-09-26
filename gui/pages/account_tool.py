@@ -64,7 +64,7 @@ class AccountToolPage(ttk.Frame):
         ttk.Button(btn_frame, text="📁 加载账号文件", command=self.load_accounts_file).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="🔍 验证全部账号", style="Accent.TButton",
                    command=self.validate_all_accounts).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="🆕 生成账号", style="Success.TButton",
+        ttk.Button(btn_frame, text="🆕 生成随机账号", style="Success.TButton",
                    command=self.generate_accounts_gui).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="💾 导出有效账号", command=self.export_valid_accounts).pack(side=tk.LEFT, padx=5)
 
