@@ -12,6 +12,9 @@ import random
 import time
 import os
 
+# 👉 导入 SimpleLogger
+from utils.logger import SimpleLogger
+
 
 class BatchOperationsPage(ttk.Frame):
     def __init__(self, parent, initial_accounts, total_count, current_env, change_env_callback):
@@ -24,33 +27,52 @@ class BatchOperationsPage(ttk.Frame):
 
         self.op_map = {k: v["name"] for k, v in self.get_operations().items()}
         self.op_map.pop("create_post")
+
+        # 👉 创建 logger 实例（关键改动）
+        self.logger = None  # 延迟绑定，在 setup_ui 后赋值
+
         self.setup_ui()
+
+        # ✅ 初始化 logger 并连接 log_widget
+        self.logger = SimpleLogger(log_func=self.log_widget._log)
+        self.logger.info(f"✅ 已加载 {self.total_accounts} 个账号。当前环境: {self.current_env.upper()}")
 
     def get_operations(self):
         from core.operations import OPERATIONS
         return OPERATIONS
 
     def setup_ui(self):
-        # 使用 StringVar 来绑定动态文本
         self.account_count_var = tk.StringVar(value=f"📦 当前账号数: {self.total_accounts}")
 
         info_frame = ttk.Frame(self)
         info_frame.pack(fill=tk.X, pady=(0, 10))
         ttk.Label(info_frame, textvariable=self.account_count_var, font=("Arial", 10, "bold")).pack(side=tk.LEFT)
 
+        # --- 操作类型 ---
         op_frame = ttk.LabelFrame(self, text="选择操作类型", padding=10)
         op_frame.pack(fill=tk.X, pady=10)
 
         self.choice_var = tk.StringVar(value="complaint_topic")
-        row, col = 0, 0
-        for key, name in self.op_map.items():
-            tk.Radiobutton(op_frame, text=name, variable=self.choice_var, value=key).grid(
-                row=row, column=col, sticky=tk.W, padx=15, pady=5)
-            col += 1
-            if col > 2:
-                col = 0
-                row += 1
 
+        # 创建一个内部 Frame 来放所有 Radiobutton
+        radio_frame = ttk.Frame(op_frame)
+        radio_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+
+        # 配置 radio_frame 的列：共6列，等宽
+        for i in range(6):
+            radio_frame.columnconfigure(i, weight=1)  # 等宽伸展
+
+        # 添加所有 RadioButtons
+        row = 0
+        for idx, (key, name) in enumerate(self.op_map.items()):
+            rb = tk.Radiobutton(
+                radio_frame,
+                text=name,
+                variable=self.choice_var,
+                value=key,
+                font=("Arial", 9)
+            )
+            rb.grid(row=row, column=idx, sticky="w", padx=5, pady=3)
         input_frame = ttk.LabelFrame(self, text="参数设置", padding=15)
         input_frame.pack(fill=tk.X, pady=10)
 
@@ -63,7 +85,6 @@ class BatchOperationsPage(ttk.Frame):
         self.num_accounts_entry.insert(0, str(min(5, self.total_accounts)))
         self.num_accounts_entry.grid(row=1, column=1, padx=5, pady=5)
 
-        # 添加延迟设置
         tk.Label(input_frame, text="延迟 (最小秒):").grid(row=2, column=0, sticky=tk.W, pady=5)
         self.min_delay_entry = tk.Entry(input_frame, width=10, font=("Consolas", 10))
         self.min_delay_entry.insert(0, "2")
@@ -84,13 +105,13 @@ class BatchOperationsPage(ttk.Frame):
         log_frame = ttk.LabelFrame(self, text="运行日志", padding=10)
         log_frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
-        self.log_widget = LogText(log_frame, height=15)
+        self.log_widget = LogText(log_frame, height=20)
         self.log_widget.pack(fill=tk.BOTH, expand=True)
 
-        self.log(f"✅ 已加载 {self.total_accounts} 个账号。当前环境: {self.current_env.upper()}")
 
-    def log(self, message):
-        self.log_widget.log(message)
+    # 👉 替代原 log 方法：使用 logger.info/debug/error
+    def log(self, message, level="info"):
+        getattr(self.logger, level)(message)
 
     def select_account_file(self):
         path = filedialog.askopenfilename(title="选择账号文件", filetypes=[("JSON files", "*.json")])
@@ -100,51 +121,49 @@ class BatchOperationsPage(ttk.Frame):
                 self.accounts = accounts
                 self.total_accounts = len(accounts)
                 self.valid_accounts = []
-                # ✅ 更新 UI 显示
                 self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
-                self.log(f"✅ 成功加载 {self.total_accounts} 个账号：{os.path.basename(path)}")
+                self.logger.info(f"✅ 成功加载 {self.total_accounts} 个账号：{os.path.basename(path)}")
             else:
+                self.logger.error("❌ 加载失败，账号文件格式错误或为空！")
                 messagebox.showerror("❌ 加载失败", "账号文件格式错误或为空！")
 
     def refresh_accounts(self, new_accounts, total_count):
-        """外部调用：刷新账号列表和 UI 显示"""
         self.accounts = new_accounts.copy()
         self.total_accounts = total_count
         self.valid_accounts = []
-        # ✅ 刷新 UI 上的账号数
         self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
-        self.log(f"🔄 已刷新账号列表，共 {self.total_accounts} 个账号（来自 {self.current_env} 环境）")
+        self.logger.info(f"🔄 已刷新账号列表，共 {self.total_accounts} 个账号（来自 {self.current_env} 环境）")
 
     def start_operation(self):
         choice = self.choice_var.get()
         target_id = self.target_id_entry.get().strip()
         num_input = self.num_accounts_entry.get().strip()
 
-        # 获取延迟
         try:
             min_delay = float(self.min_delay_entry.get().strip())
             max_delay = float(self.max_delay_entry.get().strip())
             if min_delay < 0 or max_delay < 0 or min_delay > max_delay:
                 raise ValueError
-        except:
+        except Exception:
             messagebox.showwarning("⚠️ 警告", "延迟必须为非负数，且最小 ≤ 最大！")
             return
 
         if not target_id:
             messagebox.showwarning("⚠️ 警告", "请输入目标ID！")
             return
+
         try:
             num_accounts = min(int(num_input), self.total_accounts)
             if num_accounts <= 0:
                 raise ValueError
-        except:
+        except Exception:
             messagebox.showwarning("⚠️ 警告", "账号数量必须是正整数！")
             return
 
         selected_accounts = self.accounts[:num_accounts]
         op_name = self.op_map[choice]
-        self.log(f"🚀 开始执行: {op_name} | ID: {target_id} | 账号数: {num_accounts}")
-        self.log(f"⏱️  操作延迟: {min_delay:.1f} ~ {max_delay:.1f} 秒")
+        self.logger.info(f"🚀 开始执行: {op_name} | ID: {target_id} | 账号数: {num_accounts}")
+        self.logger.info(f"⏱️  操作延迟: {min_delay:.1f} ~ {max_delay:.1f} 秒")
 
         thread = threading.Thread(
             target=self.run_operation,
@@ -158,24 +177,23 @@ class BatchOperationsPage(ttk.Frame):
         base_url = self.get_base_url()
 
         for idx, acc in enumerate(accounts, 1):
-            self.log(f"--- [{idx}/{len(accounts)}] 账号: {acc['email']} ---")
+            self.logger.info(f"--- [{idx}/{len(accounts)}] 账号: {acc['email']} ---")
             try:
                 token = login(self.session_manager, acc['email'], acc['password'], base_url)
-                self.log("✅ 登录成功")
+                self.logger.info("✅ 登录成功")
                 if execute_operation(op_key, self.session_manager, token, base_url, target_id=target_id):
                     success_count += 1
-                    self.log(f"✅ {op_name} 成功")
+                    self.logger.info(f"✅ {op_name} 成功")
                 else:
-                    self.log(f"❌ {op_name} 失败")
-                # 👇 使用传入的延迟
+                    self.logger.error(f"❌ {op_name} 失败")
                 delay = random.uniform(min_delay, max_delay)
-                self.log(f"⏸️  等待 {delay:.1f} 秒...")
+                self.logger.info(f"⏸️  等待 {delay:.1f} 秒...")
                 time.sleep(delay)
             except Exception as e:
-                self.log(f"🚫 错误: {str(e)}")
+                self.logger.error(f"🚫 错误: {str(e)}")
                 continue
 
-        self.log(f"\n🎉 完成！共 {len(accounts)} 个账号，成功 {success_count} 次。\n")
+        self.logger.info(f"\n🎉 完成！共 {len(accounts)} 个账号，成功 {success_count} 次。\n")
 
     def get_base_url(self):
         from config.settings import ENV_CONFIG
@@ -183,4 +201,4 @@ class BatchOperationsPage(ttk.Frame):
 
     def on_environment_changed(self, new_env):
         self.current_env = new_env
-        self.log(f"🔄 环境已切换至: {new_env.upper()}")
+        self.logger.info(f"🔄 环境已切换至: {new_env.upper()}")

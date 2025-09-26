@@ -14,7 +14,7 @@ _admin_session = AdminSession()
 # --- 管理员操作定义 ---
 ADMIN_OPERATIONS = {
     "grant_points": {
-        "name": "🎁 积分发放",
+        "name": "🎁 积分发放(活动奖励)",
         "description": "向指定用户发放积分",
         "params": ["aid", "points"],
         "support_single": True,
@@ -139,7 +139,7 @@ def execute_admin_operation(
         }
 
         try:
-            res = requests.post(api_url, headers=headers, json=payload, timeout=10)
+            res = requests.post(api_url, headers=headers, json=payload, timeout=10, verify=False)
             # 解析响应
             try:
                 response_data = res.json()

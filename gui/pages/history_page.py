@@ -27,7 +27,7 @@ class OperationHistoryPage(ttk.Frame):
 
         # 列定义
         cols = [
-            ("time", "时间", 100),
+            ("time", "日期时间", 100),
             ("op", "操作", 120),
             ("email", "账号", 180),
             ("target", "目标ID", 100),
@@ -50,18 +50,27 @@ class OperationHistoryPage(ttk.Frame):
         self.history_data = get_all_history()
         self.tree.delete(*self.tree.get_children())
 
+        # 收集所有记录用于排序
+        all_records = []
         for date, records in self.history_data.items():
             for rec in records:
-                tag = "success" if rec["result"] == "success" else "failed"
-                self.tree.insert("", tk.END, values=(
-                    rec["time"],
-                    rec["operation"],
-                    rec["email"],
-                    rec["target_id"],
-                    "✅ 成功" if rec["result"]=="success" else "❌ 失败",
-                    rec["env"].upper(),
-                    rec["details"]
-                ), tags=(tag,))
+                all_records.append(rec)
+
+        # 按时间逆序排序：最新的在最上面
+        all_records.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        # 插入到表格
+        for rec in all_records:
+            tag = "success" if rec["result"] == "success" else "failed"
+            self.tree.insert("", tk.END, values=(
+                rec["timestamp"].split('.')[0].replace('T', ' '),  # 格式化为 "2025-09-26 14:30:25"
+                rec["operation"],
+                rec["email"],
+                rec["target_id"],
+                "✅ 成功" if rec["result"] == "success" else "❌ 失败",
+                rec["env"].upper(),
+                rec["details"]
+            ), tags=(tag,))
 
         # 颜色
         self.tree.tag_configure("success", foreground="green")
