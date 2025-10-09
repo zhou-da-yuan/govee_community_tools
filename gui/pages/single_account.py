@@ -12,8 +12,8 @@ from core_admin.admin_operations import ADMIN_OPERATIONS, execute_admin_operatio
 from core.session_manager import SessionManager
 from core.session_state import session_state
 
-# 👉 新增导入
 from utils.logger import SimpleLogger
+from gui.widgets.placeholder_entry import PlaceholderEntry
 
 import threading
 import time
@@ -94,15 +94,19 @@ class SingleAccountPage(ttk.Frame):
                     "name": op["name"],
                     "description": op.get("description", ""),
                     "params": op["params"],
-                    "type": "user"
+                    "type": "user",
+                    "defaults": op.get("defaults", {}),
+                    "placeholders": op.get("placeholders", {})
                 }
         for key, op in ADMIN_OPERATIONS.items():
             if op.get("support_single", False):
                 operations[key] = {
                     "name": op["name"],
-                    "description": op["description"],
+                    "description": op.get("description", ""),
                     "params": op["params"],
-                    "type": "admin"
+                    "type": "admin",
+                    "defaults": op.get("defaults", {}),
+                    "placeholders": op.get("placeholders", {})
                 }
         self.operations = operations
         self.op_map = {k: v["name"] for k, v in self.operations.items()}
@@ -122,6 +126,7 @@ class SingleAccountPage(ttk.Frame):
         if not op:
             return
 
+        # 清除旧控件
         for widget in self.param_frame.winfo_children():
             widget.destroy()
         self.param_widgets.clear()
@@ -131,17 +136,32 @@ class SingleAccountPage(ttk.Frame):
             "aid": "用户 AID",
             "points": "积分数量",
             "sn": "设备 SN",
-            "count": "发帖数量",
-            "content": "帖子内容",
-            "target_id": "目标ID"
+            "count": "发布数量",
+            "content": "发布内容",
+            "target_id": "目标帖子ID"
         }
+
+        defaults = op.get("defaults", {})
+        placeholders = op.get("placeholders", {})
 
         row = 0
         for param in params:
             label_text = label_map.get(param, param.title())
             tk.Label(self.param_frame, text=label_text).grid(row=row, column=0, padx=5, pady=5, sticky="e")
-            entry = tk.Entry(self.param_frame, width=30)
+
+            # 👉 创建 PlaceholderEntry
+            entry = PlaceholderEntry(
+                self.param_frame,
+                placeholder=placeholders.get(param, ""),  # 使用占位符
+                width=30,
+                font=("Consolas", 10)
+            )
             entry.grid(row=row, column=1, padx=5, pady=5)
+
+            # 👉 设置默认值（真实内容）
+            if param in defaults:
+                entry.set(defaults[param])  # ⚠️ 关键：必须调用 .set()，不是 .insert()
+
             self.param_widgets[param] = entry
             row += 1
 
@@ -194,6 +214,7 @@ class SingleAccountPage(ttk.Frame):
             self.logger.error(f"❌ 登录失败: {str(e)}")
             return
 
+        # === 特殊处理：发帖 ===
         if op_key == "create_post":
             try:
                 count = max(1, min(50, int(self.param_widgets["count"].get())))
@@ -211,6 +232,60 @@ class SingleAccountPage(ttk.Frame):
             msg = "🎉 全部成功！" if result["all_success"] else "⚠️ 部分失败："
             self.logger.info(f"\n{msg}成功 {result['success_count']}/{result['total']} 篇。")
 
+        # === 新增：处理评论帖子 ===
+        elif op_key == "comment_post":
+            try:
+                count = max(1, min(100, int(self.param_widgets["count"].get())))  # 限制最多100条评论
+            except:
+                count = 1
+            content = self.param_widgets["content"].get().strip()
+            if not content:
+                content = "This is the default comment content for testing"
+
+            target_id = self.param_widgets["target_id"].get().strip()
+            if not target_id:
+                self.logger.error("❌ 请输入目标帖子ID")
+                messagebox.showerror("❌ 错误", "请输入目标帖子ID")
+                return
+
+            self.logger.info(f"⏳ 开始发布 {count} 条评论到帖子 {target_id}...")
+
+            success_count = 0
+            results = []
+
+            for i in range(count):
+                try:
+                    res = execute_operation(
+                        op_key="comment_post",
+                        session_manager=self.session_manager,
+                        token=token,
+                        base_url=base_url,
+                        target_id=target_id,
+                        content=content
+                    )
+
+                    if res is True:
+                        msg = f"评论 {i + 1}: 发布成功"
+                        success = True
+                        success_count += 1
+                    else:
+                        msg = f"评论 {i + 1}: 发布失败"
+                        success = False
+
+                except Exception as e:
+                    msg = f"评论 {i + 1}: 异常 {str(e)}"
+                    success = False
+                    self.logger.error(f"评论异常: {str(e)}")
+
+                results.append({"success": success, "msg": msg})
+                self.logger.info("✅" if success else "❌" + " " + msg)
+                time.sleep(random.uniform(1.5, 3.5))
+
+            all_success = success_count == count
+            status = "🎉" if all_success else "⚠️"
+            self.logger.info(f"\n{status} 批量评论完成！成功 {success_count}/{count} 条。")
+
+        # === 处理其他普通操作（如点赞、收藏等）===
         else:
             target_id = self.param_widgets.get("target_id", {}).get("get", lambda: "")().strip()
             if not target_id:

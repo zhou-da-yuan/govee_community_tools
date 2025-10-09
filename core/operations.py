@@ -57,9 +57,43 @@ OPERATIONS = {
         "name": "发布帖子",
         "url": lambda base: f"{base}/bff-app/v1/community/posting/details",
         "method": "post",
-        "support_single":True,
-        "params":["count","content"]
+        "support_single": True,
+        "params": ["count", "content"],
+        "defaults": {
+            "content": "This is an automatically published test content.",
+        },
+        "placeholders": {
+            "content": "请输入要发布的内容...",
+            "count": "输入发布数量"
+        },
         # payload 移除，由内部 build_create_post_payload 处理
+    },
+    "comment_post": {
+        "name": "发布帖子评论",
+        "url": lambda base: f"{base}/bff-app/v1/community/posting/detail/answers",
+        "method": "post",
+        "support_single": True,
+        "params": ["count", "content", "target_id"],
+        "defaults": {
+            "content": "This is the default comment content for testing",
+        },
+        "placeholders": {
+            "content": "请输入评论内容...",
+            "count": "输入评论数量 (1-100)",
+            "target_id": "请输入目标帖子ID"
+        },
+        "payload": lambda content, post_id: {
+            "originalContent": content,
+            "content": content,
+            "urls": [],
+            "color": "",
+            "hasImg": False,
+            "hasVideo": False,
+            "isAtUser": 0,
+            "postId": str(post_id),
+            "firstCommentOriginal": content,
+            "atUser": []
+        }
     },
     # "get_aid": {
     #     "name": "获取 AID",
@@ -196,6 +230,29 @@ def execute_operation(
                 "results": results
             }
 
+        elif op_key == "comment_post":
+            # 在 execute_operation 函数中，处理 comment_post 的逻辑已兼容
+            target_id = kwargs.get("target_id")
+            if not target_id:
+                raise ValueError("缺少 target_id")
+            content = kwargs.get("content", "This is the default comment content for testing")
+
+            payload = op["payload"](content, target_id)
+            res = session.post(url, headers=headers, json=payload)
+
+            result = res.status_code == 200 and res.json().get("status") == 200
+
+            # 记录历史
+            save_history({
+                "operation": op_name,
+                "email": session.headers.get("X-User-Email", "unknown"),
+                "target_id": target_id,
+                "result": "success" if result else "failed",
+                "details": res.json()
+            })
+
+            return result
+
         else:
             # 处理其他单次操作
             target_id = kwargs.get("target_id")
@@ -232,6 +289,7 @@ def execute_operation(
             "details": str(e)
         })
         return False
+
 
 def get_user_aid(session_manager: SessionManager, token: str, base_url: str) -> dict:
     """
@@ -274,79 +332,3 @@ def get_user_aid(session_manager: SessionManager, token: str, base_url: str) -> 
             "aid": None,
             "msg": f"请求异常: {str(e)}"
         }
-
-def execute_grant_points(session_manager, token: str, base_url: str, aid: str, points: int) -> Dict[str, Any]:
-    """积分发放（自动分批，每次最多 5000）"""
-    max_per = POINTS_CONFIG["grant"]["max_per_request"]
-    total = points
-    success_count = 0
-    results = []
-
-    # 分批处理
-    while points > 0:
-        current = min(points, max_per)
-        payload = OPERATIONS["grant_points"]["payload"](aid, current)
-        url = OPERATIONS["grant_points"]["url"](ADMIN_ENV_CONFIG[base_url.split('.')[1]])  # 解析环境
-
-        try:
-            session = session_manager.get_session()
-            headers = {**session.headers, 'Authorization': f'Bearer {token}', 'originFrom': 'erp'}
-            res = session.post(url, json=payload, headers=headers)
-
-            if res.status_code == 200 and res.json().get("status") in [200, 0]:
-                results.append({"success": True, "msg": f"✅ 成功发放 {current} 积分"})
-                success_count += 1
-            else:
-                msg = res.json().get("msg", "未知错误")
-                results.append({"success": False, "msg": f"❌ 发放失败: {msg}"})
-        except Exception as e:
-            results.append({"success": False, "msg": f"❌ 请求异常: {str(e)}"})
-
-        points -= current
-        time.sleep(1)  # 避免太快
-
-    return {
-        "success": success_count > 0,
-        "all_success": success_count == len(results),
-        "total": total,
-        "success_count": success_count,
-        "results": results
-    }
-
-
-def execute_deduct_points(session_manager, token: str, base_url: str, aid: str, points: int) -> Dict[str, Any]:
-    """积分扣除（自动分批，每次最多 500）"""
-    max_per = POINTS_CONFIG["deduct"]["max_per_request"]
-    total = points
-    success_count = 0
-    results = []
-
-    while points > 0:
-        current = min(points, max_per)
-        payload = OPERATIONS["deduct_points"]["payload"](aid, current)
-        url = OPERATIONS["deduct_points"]["url"](ADMIN_ENV_CONFIG[base_url.split('.')[1]])
-
-        try:
-            session = session_manager.get_session()
-            headers = {**session.headers, 'Authorization': f'Bearer {token}', 'originFrom': 'erp'}
-            res = session.post(url, json=payload, headers=headers)
-
-            if res.status_code == 200 and res.json().get("status") in [200, 0]:
-                results.append({"success": True, "msg": f"✅ 成功扣除 {current} 积分"})
-                success_count += 1
-            else:
-                msg = res.json().get("msg", "未知错误")
-                results.append({"success": False, "msg": f"❌ 扣除失败: {msg}"})
-        except Exception as e:
-            results.append({"success": False, "msg": f"❌ 请求异常: {str(e)}"})
-
-        points -= current
-        time.sleep(1)
-
-    return {
-        "success": success_count > 0,
-        "all_success": success_count == len(results),
-        "total": total,
-        "success_count": success_count,
-        "results": results
-    }
