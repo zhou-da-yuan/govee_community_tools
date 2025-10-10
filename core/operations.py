@@ -4,7 +4,6 @@ import json
 import time
 import random
 from typing import Dict, List, Any
-from config.settings import ADMIN_ENV_CONFIG, POINTS_CONFIG
 from core.session_manager import SessionManager
 from utils.history import save_history
 

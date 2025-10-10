@@ -3,11 +3,11 @@
 import time
 
 
-def login(session_manager, email: str, password: str, base_url: str) -> str:
+def login(session_manager, email: str, password: str, base_url: str, client_id: str = None) -> str:
     session = session_manager.get_session()
     url = f"{base_url}/account/rest/account/v1/login"
     payload = {
-        "client": "5e972a68a408cada",
+        "client": client_id or "5e972a68a408cada",  # 使用用户输入或默认值
         "email": email,
         "password": password,
         "key": "",
@@ -17,8 +17,6 @@ def login(session_manager, email: str, password: str, base_url: str) -> str:
     response = session.post(url, json=payload)
     result = response.json()
     if result.get("status") == 200:
-        # 添加操作记录
         session.headers.update({"X-User-Email": email})
-
         return result['client']['token']
     raise Exception(f"登录失败: {result}")

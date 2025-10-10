@@ -20,7 +20,7 @@ class SessionManager:
         """获取底层会话对象"""
         return self.session
 
-    def login_user(self, email: str, password: str, base_url: str) -> dict:
+    def login_user(self, email: str, password: str, base_url: str, client_id: str = None) -> dict:
         """
         登录用户，缓存 token 和过期时间
         :return: { 'success': bool, 'token': str or None, 'msg': str }
@@ -37,7 +37,7 @@ class SessionManager:
 
         # 否则重新登录
         try:
-            token = auth_login(self, password=password, email=email, base_url=base_url)
+            token = auth_login(self, password=password, email=email, base_url=base_url, client_id=client_id)
             if token:
                 # 假设 token 有效期为 2 小时（7200 秒），实际可根据响应头调整
                 expires_at = time.time() + 7200

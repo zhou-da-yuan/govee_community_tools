@@ -3,6 +3,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from gui.widgets.log_text import LogText
+from gui.widgets.placeholder_entry import PlaceholderEntry
 from utils.file_loader import load_accounts
 from core.auth import login
 from core.operations import execute_operation
@@ -84,7 +85,12 @@ class BatchOperationsPage(ttk.Frame):
 
         # ===== 第一行：目标ID + 评论内容 =====
         tk.Label(input_frame, text="目标ID:", font=("Arial", 9)).grid(row=0, column=0, sticky=tk.W, padx=(0, 5), pady=3)
-        self.target_id_entry = tk.Entry(input_frame, width=18, font=("Consolas", 10))
+        self.target_id_entry = PlaceholderEntry(
+            input_frame,
+            placeholder="话题ID/视频ID/帖子ID",  # 添加灰色提示文字
+            width=30,
+            font=("Consolas", 10)
+        )
         self.target_id_entry.grid(row=0, column=1, sticky=tk.W, padx=(0, 5), pady=3)
 
         self.comment_label = tk.Label(input_frame, text="评论内容:", font=("Arial", 9))

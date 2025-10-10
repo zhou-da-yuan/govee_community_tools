@@ -43,15 +43,30 @@ class SingleAccountPage(ttk.Frame):
         account_frame = ttk.LabelFrame(self, text="🔑 账号信息", padding=15)
         account_frame.pack(fill=tk.X, pady=10)
 
+        # 邮箱输入
         tk.Label(account_frame, text="📧 邮箱:").grid(row=0, column=0, sticky=tk.W, pady=5, padx=5)
         self.email_entry = tk.Entry(account_frame, width=30, font=("Consolas", 10))
-        self.email_entry.grid(row=0, column=1, padx=5, pady=5)
+        self.email_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
         if session_state.email:
             self.email_entry.insert(0, session_state.email)
 
+        # 新增 ClientId 输入
+        # 修改为使用 PlaceholderEntry 并添加占位符
+        tk.Label(account_frame, text="🏷 Client ID:").grid(row=0, column=2, sticky=tk.W, pady=5, padx=5)
+        self.client_id_entry = PlaceholderEntry(
+            account_frame,
+            placeholder="输入该账号登录过的设备的clientId",  # 添加灰色提示文字
+            width=30,
+            font=("Consolas", 10)
+        )
+        self.client_id_entry.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
+        if session_state.clientId:
+            self.client_id_entry.set(session_state.clientId)  # 使用 set 方法设置初始值
+
+        # 密码输入（调整为第二列起始）
         tk.Label(account_frame, text="🔒 密码:").grid(row=1, column=0, sticky=tk.W, pady=5, padx=5)
         self.password_entry = tk.Entry(account_frame, width=30, font=("Consolas", 10), show="*")
-        self.password_entry.grid(row=1, column=1, padx=5, pady=5)
+        self.password_entry.grid(row=1, column=1, columnspan=2, padx=5, pady=5, sticky=tk.W)
         if session_state.password:
             self.password_entry.insert(0, session_state.password)
 
@@ -177,6 +192,8 @@ class SingleAccountPage(ttk.Frame):
 
         email = self.email_entry.get().strip()
         password = self.password_entry.get().strip()
+        client_id = self.client_id_entry.get().strip()  # 获取 ClientId
+        session_state.clientId = client_id
         session_state.email = email
         session_state.password = password
 
@@ -191,12 +208,12 @@ class SingleAccountPage(ttk.Frame):
         else:
             thread = threading.Thread(
                 target=self.run_user_operation,
-                args=(op_key, email, password, base_url),
+                args=(op_key, email, password, base_url, client_id),
                 daemon=True
             )
         thread.start()
 
-    def run_user_operation(self, op_key, email, password, base_url):
+    def run_user_operation(self, op_key, email, password, base_url, client_id):
         if not email or not password:
             self.logger.error("❌ 请填写邮箱和密码")
             messagebox.showerror("❌ 错误", "请填写邮箱和密码")
@@ -208,7 +225,7 @@ class SingleAccountPage(ttk.Frame):
         self.logger.info(f"🚀 开始执行用户操作: {self.operations[op_key]['name']}")
 
         try:
-            token = login(self.session_manager, email, password, base_url)
+            token = login(self.session_manager, email, password, base_url, client_id)
             self.logger.info("✅ 登录成功")
         except Exception as e:
             self.logger.error(f"❌ 登录失败: {str(e)}")
@@ -278,7 +295,7 @@ class SingleAccountPage(ttk.Frame):
                     self.logger.error(f"评论异常: {str(e)}")
 
                 results.append({"success": success, "msg": msg})
-                self.logger.info("✅" if success else "❌" + " " + msg)
+                self.logger.info("✅ 评论成功" if success else "❌ 评论失败" + " " + msg)
                 time.sleep(random.uniform(1.5, 3.5))
 
             all_success = success_count == count
@@ -356,6 +373,8 @@ class SingleAccountPage(ttk.Frame):
     def get_aid(self):
         email = self.email_entry.get().strip()
         password = self.password_entry.get().strip()
+        client_id = self.client_id_entry.get().strip()  # 获取 ClientId
+
         if not email or not password:
             self.logger.error("❌ 请先输入邮箱和密码")
             messagebox.showerror("❌ 错误", "请先输入邮箱和密码")
@@ -363,7 +382,7 @@ class SingleAccountPage(ttk.Frame):
 
         base_url = self.get_base_url()
         try:
-            result = self.session_manager.login_user(email, password, base_url)
+            result = self.session_manager.login_user(email, password, base_url, client_id)
             if not result["success"]:
                 self.logger.error(f"❌ 登录失败: {result['msg']}")
                 messagebox.showerror("❌ 登录失败", result["msg"])

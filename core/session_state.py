@@ -5,6 +5,7 @@ class SessionState:
     def __init__(self):
         self.email = ""
         self.password = ""
+        self.clientId = ""
 
 # 全局唯一实例
 session_state = SessionState()

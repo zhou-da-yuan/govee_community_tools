@@ -10,13 +10,15 @@ from utils.history import save_history  # ✅ 导入历史记录模块
 # --- 全局会话 ---
 _admin_session = AdminSession()
 
-
 # --- 管理员操作定义 ---
 ADMIN_OPERATIONS = {
     "grant_points": {
         "name": "🎁 积分发放(活动奖励)",
         "description": "向指定用户发放积分",
         "params": ["aid", "points"],
+        "placeholders": {
+            "aid": "输入了账号信息则无需输入AID",
+        },
         "support_single": True,
         "method": "POST",
         "url_path": lambda: POINTS_CONFIG["grant_points"]["url_path"],
@@ -36,6 +38,9 @@ ADMIN_OPERATIONS = {
         "name": "🚫 积分扣除",
         "description": "扣除指定用户积分",
         "params": ["aid", "points"],
+        "placeholders": {
+            "aid": "输入了账号信息则无需输入AID",
+        },
         "support_single": True,
         "method": "POST",
         "url_path": lambda: POINTS_CONFIG["deduct_points"]["url_path"],
@@ -81,12 +86,12 @@ def _get_admin_token(env: str, username: str, password: str) -> tuple:
 
 # --- 核心执行函数 ---
 def execute_admin_operation(
-    op_key: str,
-    env: str,
-    aid: str,
-    points: int,
-    admin_username: str,
-    admin_password: str
+        op_key: str,
+        env: str,
+        aid: str,
+        points: int,
+        admin_username: str,
+        admin_password: str
 ) -> Dict[str, Any]:
     """
     统一执行管理员操作（支持自动分批 + 操作记录）
@@ -151,7 +156,8 @@ def execute_admin_operation(
                 "operation": op_name,
                 "email": email,
                 "target_id": aid,
-                "result": "success" if (res.status_code == 200 and response_data.get("status") in [200, 0]) else "failed",
+                "result": "success" if (
+                        res.status_code == 200 and response_data.get("status") in [200, 0]) else "failed",
                 "env": env,
                 "details": response_data
             })
