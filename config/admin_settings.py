@@ -3,7 +3,7 @@
 # 管理员后台域名（根据环境切换）
 ADMIN_BackendENV_CONFIG = {
     "dev": "dev-backend.lanjingerp.com",
-    "pda": "pda-backend.lanjingerp.com"
+    "pda": "dev-backend.lanjingerp.com"
 }
 
 ADMIN_AdminApiENV_CONFIG = {

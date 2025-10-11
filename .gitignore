@@ -4,3 +4,4 @@ GoveeCommunityTool-v3.0.spec
 /build
 /logs
 /data/history
+clean.py
