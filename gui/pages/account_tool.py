@@ -69,16 +69,7 @@ class AccountToolPage(ttk.Frame):
         self.max_validate_delay.insert(0, "3")
         self.max_validate_delay.pack(side=tk.LEFT, padx=5)
 
-        # 生成数量
-        generate_frame = ttk.Frame(self)
-        generate_frame.pack(pady=5)
-
-        tk.Label(generate_frame, text="生成数量:").pack(side=tk.LEFT)
-        self.generate_count = tk.Entry(generate_frame, width=8)
-        self.generate_count.insert(0, "5")
-        self.generate_count.pack(side=tk.LEFT, padx=5)
-
-        # 按钮区域（不包含刷新）
+        # 按钮区域
         btn_frame = ttk.Frame(self)
         btn_frame.pack(pady=10)
 
@@ -102,6 +93,40 @@ class AccountToolPage(ttk.Frame):
 
         self.valid_accounts = []
 
+        # === 新增：账号表格区域 ===
+        table_frame = ttk.LabelFrame(self, text="📊 账号列表", padding=10)
+        table_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+        # 创建带滚动条的 Treeview
+        columns = ("email", "password", "env")
+        self.account_tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings",
+            height=8
+        )
+
+        # 设置列标题和宽度
+        self.account_tree.heading("email", text="📧 邮箱")
+        self.account_tree.heading("password", text="🔑 密码")
+        self.account_tree.heading("env", text="🌐 环境")
+
+        self.account_tree.column("email", width=250, anchor="w")
+        self.account_tree.column("password", width=180, anchor="w")
+        self.account_tree.column("env", width=100, anchor="center")
+
+        # 添加垂直滚动条
+        v_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.account_tree.yview)
+        self.account_tree.configure(yscrollcommand=v_scroll.set)
+        v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.account_tree.pack(fill=tk.BOTH, expand=True)
+
+        # 可选：双击复制邮箱
+        self.account_tree.bind("<Double-1>", self.on_double_click_account)
+
+        # 初始化为空
+        self.refresh_account_table()
+
     def log(self, message):
         self.log_widget.log(message)
 
@@ -113,8 +138,7 @@ class AccountToolPage(ttk.Frame):
                 self.accounts = accounts
                 self.total_accounts = len(accounts)
                 self.valid_accounts = []
-                # ✅ 更新 UI 显示
-                self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
+                self.refresh_account_table()  # ✅ 刷新表格
                 self.log(f"✅ 成功加载 {self.total_accounts} 个账号：{os.path.basename(path)}")
             else:
                 messagebox.showerror("❌ 加载失败", "账号文件格式错误或为空！")
@@ -194,22 +218,80 @@ class AccountToolPage(ttk.Frame):
                 messagebox.showerror("❌ 错误", f"保存失败: {str(e)}")
 
     def generate_accounts_gui(self):
-        try:
-            count = int(self.generate_count.get().strip())
-            if count <= 0 or count > 100:
-                messagebox.showwarning("⚠️ 输入错误", "请输入 1-100 之间的数字")
-                return
-        except:
-            messagebox.showwarning("⚠️ 输入错误", "请输入有效数字")
-            return
+        """弹出输入框，获取生成数量"""
+        dialog = tk.Toplevel(self)
+        dialog.title("生成随机账号")
+        dialog.geometry("300x180")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
 
-        if messagebox.askyesno("确认", f"即将生成 {count} 个账号，确认继续？"):
-            thread = threading.Thread(
-                target=self.run_generate,
-                args=(count,),
-                daemon=True
-            )
-            thread.start()
+        # 居中显示
+        dialog.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.winfo_rooty() + (self.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+
+        dialog.configure(bg="#f9f9f9")
+
+        # 标题
+        ttk.Label(dialog, text="请输入要生成的账号数量", font=("微软雅黑", 11, "bold")).pack(pady=(15, 5))
+
+        # 范围提示
+        ttk.Label(
+            dialog,
+            text="范围：1-100",
+            foreground="gray",
+            font=("微软雅黑", 9)
+        ).pack()
+
+        # 输入框
+        input_frame = ttk.Frame(dialog)
+        input_frame.pack(pady=15, padx=20, fill=tk.X)
+
+        ttk.Label(input_frame, text="数量:", font=("微软雅黑", 10)).pack(side=tk.LEFT)
+        count_var = tk.StringVar(value="5")
+        entry = ttk.Entry(input_frame, textvariable=count_var, font=("微软雅黑", 10), width=10)
+        entry.pack(side=tk.RIGHT, expand=True, fill=tk.X)
+        entry.focus()
+
+        # 按钮
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=10)
+
+        # 使用 grid 布局避免文字被截断
+        button_frame.columnconfigure(0, weight=1)
+        button_frame.columnconfigure(1, weight=1)
+
+        def on_confirm():
+            try:
+                count = int(count_var.get().strip())
+                if count < 1 or count > 100:
+                    raise ValueError
+                dialog.destroy()
+                if messagebox.askyesno("确认", f"即将生成 {count} 个账号，确认继续？"):
+                    self.run_generate_in_thread(count)
+            except:
+                messagebox.showwarning("⚠️ 输入错误", "请输入 1 到 100 之间的整数！")
+                entry.focus()
+
+        # 使用 grid + 足够宽度
+        ttk.Button(button_frame, text="确定", width=12, style="Success.TButton", command=on_confirm).grid(row=0,
+                                                                                                          column=0,
+                                                                                                          padx=5,
+                                                                                                          sticky="w")
+
+        ttk.Button(button_frame, text="取消", width=12, command=dialog.destroy).grid(row=0, column=1, padx=5,
+                                                                                     sticky="e")
+
+    def run_generate_in_thread(self, count: int):
+        """启动线程生成账号"""
+        thread = threading.Thread(
+            target=self.run_generate,
+            args=(count,),
+            daemon=True
+        )
+        thread.start()
 
     def run_generate(self, count: int):
         base_url = self.get_base_url()
@@ -261,6 +343,9 @@ class AccountToolPage(ttk.Frame):
                     self.log(f"ℹ️  共 {len(generated) - len(new_unique)} 个重复邮箱被跳过。")
             except Exception as e:
                 self.log(f"❌ 保存文件失败: {str(e)}")
+
+            # ✅ 刷新表格
+            self.refresh_account_table()
 
             # 更新 UI
             self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
@@ -358,13 +443,8 @@ class AccountToolPage(ttk.Frame):
             self.log(f"❌ 未能从 {email} 获取到验证码，请确认邮箱有新邮件或账号正确。")
 
     def reload_current_file(self):
-        """重新加载当前环境对应的账号文件"""
         file_path = ENV_TO_FILE.get(self.current_env)
-        if not file_path:
-            messagebox.showwarning("⚠️ 未知环境", f"未配置 {self.current_env} 的账号文件路径")
-            return
-        if not os.path.exists(file_path):
-            messagebox.showwarning("⚠️ 文件不存在", f"该环境的账号文件不存在：\n{file_path}")
+        if not file_path or not os.path.exists(file_path):
             return
 
         accounts = load_accounts(file_path)
@@ -372,7 +452,7 @@ class AccountToolPage(ttk.Frame):
             self.accounts = accounts
             self.total_accounts = len(accounts)
             self.valid_accounts = []
-            self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
+            self.refresh_account_table()  # ✅ 刷新表格
             self.log(f"🔄 已从 {file_path} 重新加载 {self.total_accounts} 个账号。")
         else:
             self.log(f"❌ 文件为空或格式错误：{file_path}")
@@ -415,3 +495,36 @@ class AccountToolPage(ttk.Frame):
     def on_environment_changed(self, new_env):
         self.current_env = new_env
         self.log(f"🔄 环境已切换至: {new_env.upper()}")
+        self.reload_current_file()  # 自动刷新账号和表格
+
+    def refresh_account_table(self):
+        """清空并重新填充账号表格"""
+        # 清空现有数据
+        for item in self.account_tree.get_children():
+            self.account_tree.delete(item)
+
+        # 插入新数据
+        for acc in self.accounts:
+            self.account_tree.insert(
+                "",
+                tk.END,
+                values=(acc['email'], acc['password'], self.current_env.upper())
+            )
+
+        # 更新状态标签
+        self.account_count_var.set(f"📦 当前账号数: {len(self.accounts)}")
+
+    def on_double_click_account(self, event):
+        selection = self.account_tree.selection()
+        if not selection:
+            return
+        item = self.account_tree.item(selection[0])
+        email = item["values"][0]
+        try:
+            # 使用主窗口操作剪贴板
+            self.winfo_toplevel().clipboard_clear()
+            self.winfo_toplevel().clipboard_append(email)
+            self.winfo_toplevel().update()
+            self.log(f"📋 已复制邮箱到剪贴板: {email}")
+        except Exception as e:
+            self.log(f"❌ 无法复制到剪贴板: {str(e)}")
