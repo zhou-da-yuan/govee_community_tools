@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from gui.widgets.log_text import LogText
 from gui.widgets.placeholder_entry import PlaceholderEntry
+from gui.widgets.tooltip import add_tooltip
 from utils.file_loader import load_accounts
 from core.auth import login
 from core.operations import execute_operation
@@ -13,7 +14,6 @@ import random
 import time
 import os
 
-# 👉 导入 SimpleLogger
 from utils.logger import SimpleLogger
 
 
@@ -29,7 +29,6 @@ class BatchOperationsPage(ttk.Frame):
         self.op_map = {k: v["name"] for k, v in self.get_operations().items()}
         self.op_map.pop("create_post")
 
-        # 👉 创建 logger 实例（关键改动）
         self.logger = None  # 延迟绑定，在 setup_ui 后赋值
 
         self.setup_ui()
@@ -45,9 +44,26 @@ class BatchOperationsPage(ttk.Frame):
     def setup_ui(self):
         self.account_count_var = tk.StringVar(value=f"📦 当前账号数: {self.total_accounts}")
 
+        # === 修改：info_frame 包含 账号数 + 刷新按钮 ===
         info_frame = ttk.Frame(self)
         info_frame.pack(fill=tk.X, pady=(0, 10))
-        ttk.Label(info_frame, textvariable=self.account_count_var, font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+
+        # 账号数标签
+        ttk.Label(
+            info_frame,
+            textvariable=self.account_count_var,
+            font=("Arial", 10, "bold")
+        ).pack(side=tk.LEFT)
+
+        # 刷新按钮
+        refresh_btn = ttk.Button(
+            info_frame,
+            text="🔄 刷新",
+            width=10,
+            command=self.reload_current_file
+        )
+        refresh_btn.pack(side=tk.LEFT, padx=(0, 10))
+        add_tooltip(refresh_btn, "从文件重新加载当前环境的账号列表")
 
         # --- 操作类型 ---
         op_frame = ttk.LabelFrame(self, text="选择操作类型", padding=10)
@@ -243,6 +259,23 @@ class BatchOperationsPage(ttk.Frame):
                 continue
 
         self.logger.info(f"\n🎉 完成！共 {len(accounts)} 个账号，成功 {success_count} 次。\n")
+
+    def reload_current_file(self):
+        """从当前环境对应的文件重新加载账号"""
+        from config.settings import ENV_TO_FILE
+        file_path = ENV_TO_FILE.get(self.current_env)
+        if not file_path or not os.path.exists(file_path):
+            self.logger.warning(f"⚠️ 未找到当前环境的账号文件: {file_path}")
+            return
+
+        accounts = load_accounts(file_path)
+        if accounts:
+            self.accounts = accounts
+            self.total_accounts = len(accounts)
+            self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
+            self.logger.info(f"🔄 已从 {os.path.basename(file_path)} 重新加载 {self.total_accounts} 个账号。")
+        else:
+            self.logger.error(f"❌ 文件为空或格式错误：{file_path}")
 
     def get_base_url(self):
         from config.settings import ENV_CONFIG
