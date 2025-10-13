@@ -1,6 +1,6 @@
 # Govee Community Tools
 
-![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 本工具旨在帮助GoveeHome测试人员高效创建测试数据，账号管理等功能。通过图形界面（GUI）和后台逻辑模块的结合，您可轻松完成账户生成、邮件验证、批量操作等任务。
