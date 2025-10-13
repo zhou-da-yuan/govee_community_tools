@@ -55,20 +55,6 @@ class AccountToolPage(ttk.Frame):
         refresh_btn.pack(side=tk.LEFT, padx=(0, 10))
         add_tooltip(refresh_btn, "从文件重新加载当前环境的账号列表")
 
-        # 延迟设置
-        delay_frame = ttk.Frame(self)
-        delay_frame.pack(pady=5)
-
-        tk.Label(delay_frame, text="验证延迟 (最小秒):").pack(side=tk.LEFT)
-        self.min_validate_delay = tk.Entry(delay_frame, width=8)
-        self.min_validate_delay.insert(0, "1")
-        self.min_validate_delay.pack(side=tk.LEFT, padx=5)
-
-        tk.Label(delay_frame, text="最大秒):").pack(side=tk.LEFT)
-        self.max_validate_delay = tk.Entry(delay_frame, width=8)
-        self.max_validate_delay.insert(0, "3")
-        self.max_validate_delay.pack(side=tk.LEFT, padx=5)
-
         # 按钮区域
         btn_frame = ttk.Frame(self)
         btn_frame.pack(pady=10)
@@ -157,15 +143,67 @@ class AccountToolPage(ttk.Frame):
             messagebox.showwarning("⚠️ 警告", "请先加载账号！")
             return
 
-        try:
-            min_delay = float(self.min_validate_delay.get().strip())
-            max_delay = float(self.max_validate_delay.get().strip())
-            if min_delay < 0 or max_delay < 0 or min_delay > max_delay:
-                raise ValueError
-        except:
-            messagebox.showwarning("⚠️ 警告", "验证延迟格式错误！")
-            return
+        # 创建延迟设置弹窗
+        dialog = tk.Toplevel(self)
+        dialog.title("设置验证延迟")
+        dialog.geometry("320x180")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
 
+        # 居中显示
+        dialog.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.winfo_rooty() + (self.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+        dialog.configure(bg="#f9f9f9")
+
+        # 标题
+        ttk.Label(dialog, text="设置账号验证延迟时间", font=("微软雅黑", 11, "bold")).pack(pady=(15, 5))
+
+        # 提示说明
+        ttk.Label(
+            dialog,
+            text="随机延迟范围（秒），避免请求过快",
+            foreground="gray",
+            font=("微软雅黑", 9)
+        ).pack()
+
+        # 输入区域
+        input_frame = ttk.Frame(dialog)
+        input_frame.pack(pady=20, padx=30, fill=tk.X)
+
+        ttk.Label(input_frame, text="最小延迟:", font=("微软雅黑", 10)).grid(row=0, column=0, sticky="w", pady=2)
+        min_var = tk.StringVar(value="1")
+        ttk.Entry(input_frame, textvariable=min_var, width=10).grid(row=0, column=1, padx=(10, 0), pady=2)
+
+        ttk.Label(input_frame, text="最大延迟:", font=("微软雅黑", 10)).grid(row=1, column=0, sticky="w", pady=2)
+        max_var = tk.StringVar(value="3")
+        ttk.Entry(input_frame, textvariable=max_var, width=10).grid(row=1, column=1, padx=(10, 0), pady=2)
+
+        # 按钮区
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=10)
+
+        def on_confirm():
+            try:
+                min_delay = float(min_var.get().strip())
+                max_delay = float(max_var.get().strip())
+                if min_delay < 0 or max_delay < 0 or min_delay > max_delay:
+                    raise ValueError
+                dialog.destroy()
+                self.start_validation_with_delay(min_delay, max_delay)
+            except ValueError:
+                messagebox.showwarning("⚠️ 输入错误", "请输入有效的非负数字，且最小 ≤ 最大！")
+                min_entry = input_frame.grid_slaves(row=0, column=1)[0]
+                min_entry.focus()
+
+        ttk.Button(button_frame, text="确认", width=10, style="Success.TButton", command=on_confirm).pack(side=tk.LEFT,
+                                                                                                          padx=5)
+        ttk.Button(button_frame, text="取消", width=10, command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+
+    def start_validation_with_delay(self, min_delay: float, max_delay: float):
+        """由弹窗调用，开始带延迟参数的验证"""
         self.log(f"🔍 开始验证 {self.total_accounts} 个账号...")
         self.valid_accounts = []
         base_url = self.get_base_url()

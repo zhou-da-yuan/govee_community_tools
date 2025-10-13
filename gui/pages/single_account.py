@@ -202,18 +202,18 @@ class SingleAccountPage(ttk.Frame):
         if op["type"] == "admin":
             thread = threading.Thread(
                 target=self.run_admin_operation,
-                args=(op_key, email, password, base_url),
+                args=(op_key, email, password, base_url, self.current_env),
                 daemon=True
             )
         else:
             thread = threading.Thread(
                 target=self.run_user_operation,
-                args=(op_key, email, password, base_url, client_id),
+                args=(op_key, email, password, base_url, client_id, self.current_env),
                 daemon=True
             )
         thread.start()
 
-    def run_user_operation(self, op_key, email, password, base_url, client_id):
+    def run_user_operation(self, op_key, email, password, base_url, client_id, current_env):
         if not email or not password:
             self.logger.error("❌ 请填写邮箱和密码")
             messagebox.showerror("❌ 错误", "请填写邮箱和密码")
@@ -240,7 +240,7 @@ class SingleAccountPage(ttk.Frame):
             content = self.param_widgets["content"].get().strip() or "This is an automatically published test content."
 
             result = execute_operation(op_key, self.session_manager, token, base_url,
-                                       count=count, content=content)
+                                       count=count, content=content, env=current_env)
 
             for i, r in enumerate(result["results"]):
                 status = "✅" if r["success"] else "❌"
@@ -278,7 +278,8 @@ class SingleAccountPage(ttk.Frame):
                         token=token,
                         base_url=base_url,
                         target_id=target_id,
-                        content=content
+                        content=content,
+                        env=current_env
                     )
 
                     if res is True:
@@ -295,7 +296,7 @@ class SingleAccountPage(ttk.Frame):
                     self.logger.error(f"评论异常: {str(e)}")
 
                 results.append({"success": success, "msg": msg})
-                self.logger.info("✅ 评论成功" if success else "❌ 评论失败" + " " + msg)
+                self.logger.info("✅ 评论成功" + " " + msg if success else "❌ 评论失败" + " " + msg)
                 time.sleep(random.uniform(1.5, 3.5))
 
             all_success = success_count == count
@@ -403,3 +404,7 @@ class SingleAccountPage(ttk.Frame):
     def get_base_url(self):
         from config.settings import ENV_CONFIG
         return ENV_CONFIG[self.current_env]
+
+    def on_environment_changed(self, new_env):
+        self.current_env = new_env
+        self.logger.info(f"🔄 环境已切换至: {new_env.upper()}")

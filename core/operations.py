@@ -204,12 +204,13 @@ def execute_operation(
                     }
                     logging.error(f"发帖异常 (第{i + 1}条): {str(e)}")
 
-                    # 无论成功失败都记录历史
+                # 无论成功失败都记录历史
                 save_history({
                     "operation": op_name,
                     "email": session.headers.get("X-User-Email", "unknown"),
                     "target_id": result["post_id"],
                     "result": "success" if result["success"] else "failed",
+                    "env":kwargs.get("env"),
                     "details": result["msg"]
                 })
 
@@ -247,6 +248,7 @@ def execute_operation(
                 "email": session.headers.get("X-User-Email", "unknown"),
                 "target_id": target_id,
                 "result": "success" if result else "failed",
+                "env": kwargs.get("env"),
                 "details": res.json()
             })
 
@@ -273,6 +275,7 @@ def execute_operation(
                 "email": session.headers.get("X-User-Email", "unknown"),
                 "target_id": target_id,
                 "result": "success" if result else "failed",
+                "env": kwargs.get("env"),
                 "details": res.json()
             })
 
@@ -285,6 +288,7 @@ def execute_operation(
             "email": session.headers.get("X-User-Email", "unknown"),
             "target_id": kwargs.get("target_id", "N/A"),
             "result": "failed",
+            "env":kwargs.get("env"),
             "details": str(e)
         })
         return False

@@ -27,13 +27,13 @@ class OperationHistoryPage(ttk.Frame):
 
         # 列定义
         cols = [
-            ("time", "日期时间", 100),
-            ("op", "操作", 120),
-            ("email", "账号", 180),
-            ("target", "目标ID", 100),
-            ("result", "结果", 80),
-            ("env", "环境", 80),
-            ("details", "详情", 150)
+            ("time", "日期时间", 120),
+            ("op", "操作", 80),
+            ("email", "账号", 120),
+            ("target", "目标ID", 60),
+            ("result", "结果", 40),
+            ("env", "环境", 40),
+            ("details", "详情", 220)
         ]
         for col, text, width in cols:
             self.tree.heading(col, text=text)
