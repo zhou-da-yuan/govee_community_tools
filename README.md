@@ -1,145 +1,141 @@
 # Govee Community Tools
 
-欢迎使用 **Govee Community Tools**！  
+![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+
 本工具旨在帮助GoveeHome测试人员高效创建测试数据，账号管理等功能。通过图形界面（GUI）和后台逻辑模块的结合，您可轻松完成账户生成、邮件验证、批量操作等任务。
 
----
+## 📁 项目结构
 
-## 📚 目录
+```
+govee_community_tools/
+├── .venv/                    # 虚拟环境目录
+├── assets/                   # 静态资源文件
+├── config/                   # 配置相关文件
+│   ├── __init__.py
+│   ├── _version_.py
+│   ├── admin_settings.py
+│   └── settings.py
+├── core/                     # 核心功能模块
+│   ├── __init__.py
+│   ├── account_generator.py
+│   ├── auth.py
+│   ├── email_verifier.py
+│   ├── operations.py
+│   ├── session_manager.py
+│   └── session_state.py
+├── core_admin/               # 后台功能模块
+│   ├── __init__.py
+│   ├── admin_auth.py
+│   ├── admin_operations.py
+│   └── admin_session.py
+├── data/                     # 数据存储目录
+│   └── history/              # 历史记录
+├── gui/                      # 图形用户界面
+│   ├── pages/                # 功能界面
+│       ├── account_tool.py       # 账号工具页面
+│       ├── batch_page.py         # 批量账号操作页面
+│       ├── single_account.py     # 账号操作页面
+│       └── history_page.py       # 操作历史页面
+│   ├── widgets/              # 界面组件
+│       ├── aid_popup.py          # AID弹窗组件
+│       ├── help_viewer.py        # 帮助文档组件
+│       ├── log_text.py           # 日志组件
+│       ├── placeholder_entry.py  # 输入框灰色文字提示组件
+│       └── tooltip.py            # 鼠标悬停文字提示组件
+│   ├── __init__.py
+│   └── main_window.py        # 主界面
+├── logs/                     # 日志文件
+│   └── app.log
+├── resources/                # 资源文件
+│   ├── accounts_dev.json     # DEV环境账号配置
+│   ├── accounts_pda.json     # PDA 环境账号配置
+│   └── help.md               # 使用帮助文档
+├── utils/                    # 工具函数
+│   ├── __init__.py
+│   ├── file_loader.py
+│   ├── history.py
+│   └── logger.py
+├── .gitignore
+├── build.py                  # 构建脚本
+├── clean.py                  # 清理脚本
+├── main.py                   # 主程序入口
+├── requirements.txt          # 依赖包列表
+└── README.md                 # 本文件
+```
 
-- [1. 基本功能介绍](#1-基本功能介绍)
-- [2. 启动程序](#2-启动程序)
-- [3. 主界面说明](#3-主界面说明)
-- [4. 功能使用指南](#4-功能使用指南)
-  - [4.1 账户管理](#41-账户管理)
-  - [4.2 邮箱验证](#42-邮箱验证)
-  - [4.3 登录与会话控制](#43-登录与会话控制)
-  - [4.4 执行社区操作](#44-执行社区操作)
-  - [4.5 管理员功能](#45-管理员功能)
-- [5. 配置文件说明](#5-配置文件说明)
-- [6. 日志查看](#6-日志查看)
-- [7. 常见问题（FAQ）](#7-常见问题faq)
-- [8. 安全与合规提示](#8-安全与合规提示)
+## 🧩 功能概述
 
----
+- **批量账号操作**：使用不同的账号进行一次所选操作，可设置需要使用的账号数。
+- **账号操作**：使用指定的账号进行多次所选操作，可设置操作次数。
+- **账户生成**：自动创建 Govee 社区账户。
+- **获取账号验证码**：自动获取验证码。
+- **GUI 界面**：通过图形界面简化操作流程。
+- **日志记录**：详细记录运行状态和错误信息。
+- **数据持久化**：支持本地存储历史记录和配置。
 
-## 1. 基本功能介绍
+## 🛠️ 安装与使用
 
-| 功能 | 描述 |
-|------|------|
-| ✅ 账户生成 | 自动生成符合 Govee 注册规则的测试账户 |
-| ✅ 邮箱验证 | 自动检测并处理邮箱收件，完成注册验证 |
-| ✅ 会话管理 | 维护登录状态，支持多账户切换 |
-| ✅ 社区操作 | 执行点赞、发帖、评论等模拟行为（仅限测试环境） |
-| ✅ 后台操作 | 提供积分获取，积分扣除等 |
-| ✅ 图形界面 | 友好的 GUI 操作界面，无需命令行 |
-| ✅ 日志记录 | 全流程操作日志，便于调试与审计 |
+### 1. 克隆项目
+```bash
+git clone https://github.com/yourusername/govee_community_tools.git
+cd govee_community_tools
+```
 
----
+### 2. 创建虚拟环境并安装依赖
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# 或
+.venv\Scripts\activate     # Windows
 
-## 2. 启动程序
+pip install -r requirements.txt
+```
 
-确保已安装依赖后，运行主程序：
-
+### 3. 运行主程序
 ```bash
 python main.py
 ```
 
-程序启动后将自动打开图形界面窗口。
+### 4. 启动 GUI
+启动后将自动打开图形界面窗口，可进行账户管理、任务调度等操作。
 
-> 💡 提示：推荐在虚拟环境中运行以避免依赖冲突。
+## 🔧 配置说明
+
+- `config/settings.py`：全局配置项（如 API 地址、超时时间等）
+- `config/admin_settings.py`：管理员专用设置
+- `resources/accounts_dev.json` 和 `accounts_pda.json`：分别用于开发和生产环境的账号池
+- `data/history/`：自动保存操作历史
+
+## 📚 使用帮助
+
+详细使用指南请参阅：[resources/help.md](resources/help.md)
+
+## 📂 日志系统
+
+所有运行日志均记录在 `logs/app.log` 中，便于调试和监控。
+
+## 🧹 清理与维护
+
+- 使用 `clean.py` 清理临时文件和缓存
+- 使用 `build.py` 打包发布版本（如有需要）
+
+## ✅ 依赖项
+
+查看 `requirements.txt` 获取完整的依赖列表。
+
+
+## 🤝 贡献
+
+欢迎提交 Issue 或 Pull Request！请遵循以下步骤：
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/xxx`)
+3. 提交更改 (`git commit -m 'Add some awesome feature'`)
+4. 推送到远程 (`git push origin feature/xxx`)
+5. 创建 Pull Request
 
 ---
 
-## 3. 主界面说明
-
-启动后您将看到如下界面：
+> ⚠️ 注意：本工具仅用于合法合规用途，请勿用于任何违反服务条款的行为。
 
 ```
-+--------------------------------------------------+
-| Govee Community Tools v1.0.0                     |
-+--------------------------------------------------+
-| [批量账号操作]  [账号操作]  [账号工具]  [操作历史]         |
-+--------------------------------------------------+
-| 主操作区域（根据页面切换内容）                  |
-|                                                   |
-| - 左侧导航栏用于切换功能模块                    |
-| - 中央区域显示当前功能的操作界面                |
-| - 底部状态栏显示当前用户、会话状态和版本信息    |
-+--------------------------------------------------+
-```
-
----
-
-## 4. 功能使用指南
-
-### 4.1 批量账号操作
-> 使用不同的账号进行一次所选操作，可设置需要使用的账号数
-
-- 投诉话题/视频/帖子/播放列表
-- 收藏DIY视频/收藏播放列表
-- 给帖子点赞
-- 发布帖子评论（需要绑定设备的账号）
-
-
----
-
-### 4.2 账号操作
-> 使用指定的账号进行多次所选操作，可设置操作次数
-
-- 批量发帖
-- 批量发布评论
-- 积分获取
-- 积分扣除
-
-
----
-
-### 4.3 账号工具
-> 与GoveeHome账号相关的操作
-
-- 生成随机账号
-- 获取邮箱验证码
-
-
----
-
-### 4.4 操作历史
-> 历史操作记录
-
----
-
-### 4.5 环境切换
-> 可切换DEV环境和PDA环境
-
----
-
-## 5. 配置文件说明
-
-| 文件 | 用途 | 修改建议 |
-|------|------|----------|
-| `config/settings.py` | 全局设置（API 地址、超时、重试次数） | 根据网络环境调整 |
-| `config/admin_settings.py` | 后台设置 |
-| `resources/accounts_dev.json` | DEV环境账户 |
-| `resources/accounts_pda.json` | PDA环境账户 |
-| `data/history/` | 自动保存任务历史 | 可定期备份 |
-
----
-
-## 6. 日志查看
-
-所有操作均记录在：
-
-```
-logs/app.log
-```
-
-日志级别包括：
-- `INFO`：常规操作
-- `WARNING`：潜在问题
-- `ERROR`：执行失败
-- `DEBUG`：详细调试信息（需在设置中开启）
-
-可通过 GUI 的“日志”页面实时查看。
-
----
