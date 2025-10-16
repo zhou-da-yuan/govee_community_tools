@@ -103,7 +103,7 @@ python main.py
 ## 🔧 配置说明
 
 - `config/settings.py`：全局配置项（如 API 地址、超时时间等）
-- `config/admin_settings.py`：管理员专用设置
+- `config/admin_settings.py`：后台专用设置
 - `resources/accounts_dev.json` 和 `accounts_pda.json`：分别用于开发和生产环境的账号池
 - `data/history/`：自动保存操作历史
 
@@ -117,23 +117,9 @@ python main.py
 
 ## 🧹 清理与维护
 
-- 使用 `clean.py` 清理临时文件和缓存
+- 使用 `clean.py` 清打包时文件和缓存
 - 使用 `build.py` 打包发布版本（如有需要）
 
 ## ✅ 依赖项
 
 查看 `requirements.txt` 获取完整的依赖列表。
-
-
-## 🤝 贡献
-
-欢迎提交 Issue 或 Pull Request！请遵循以下步骤：
-1. Fork 本仓库
-2. 创建功能分支 (`git checkout -b feature/xxx`)
-3. 提交更改 (`git commit -m 'Add some awesome feature'`)
-4. 推送到远程 (`git push origin feature/xxx`)
-5. 创建 Pull Request
-
----
-
-> ⚠️ 注意：本工具仅用于合法合规用途，请勿用于任何违反服务条款的行为。
