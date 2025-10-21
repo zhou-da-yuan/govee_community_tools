@@ -71,3 +71,13 @@ def get_all_history():
         except:
             continue
     return all_data
+
+def clear_all_history():
+    """清空所有历史记录"""
+    for filename in os.listdir(HISTORY_DIR):
+        if filename.endswith(".json"):
+            file_path = os.path.join(HISTORY_DIR, filename)
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print(f"无法删除文件 {file_path}: {e}")

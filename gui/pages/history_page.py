@@ -20,9 +20,12 @@ class OperationHistoryPage(ttk.Frame):
 
         ttk.Label(header, text="📅 操作历史记录", font=("Arial", 12, "bold")).pack(side=tk.LEFT)
         ttk.Button(header, text="🗑️ 清空今日", command=self.clear_today).pack(side=tk.RIGHT)
+        # 新增：清空所有记录按钮
+        ttk.Button(header, text="🗑️ 清空全部", command=self.clear_all_history).pack(side=tk.RIGHT)
 
         # 表格
-        self.tree = ttk.Treeview(self, columns=("time", "op", "email", "target", "result", "env", "details"), show="headings", height=25)
+        self.tree = ttk.Treeview(self, columns=("time", "op", "email", "target", "result", "env", "details"),
+                                 show="headings", height=25)
         self.tree.pack(fill=tk.BOTH, expand=True)
 
         # 列定义
@@ -68,7 +71,7 @@ class OperationHistoryPage(ttk.Frame):
                 rec["email"],
                 rec["target_id"],
                 "✅ 成功" if rec["result"] == "success" else "❌ 失败",
-                rec["env"].upper(),
+                (str(rec.get("env") or "")).upper(),  # 防止为记录到环境报错
                 rec["details"]
             ), tags=(tag,))
 
@@ -81,3 +84,10 @@ class OperationHistoryPage(ttk.Frame):
             clear_history()
             self.load_history()
             messagebox.showinfo("✅ 已清空", "今日历史记录已清除。")
+
+    def clear_all_history(self):
+        if messagebox.askyesno("确认", "是否清空【所有】操作历史？"):
+            from utils.history import clear_all_history
+            clear_all_history()
+            self.load_history()
+            messagebox.showinfo("✅ 已清空", "所有历史记录已清除。")

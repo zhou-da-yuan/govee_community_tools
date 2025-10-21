@@ -71,23 +71,43 @@ class BatchOperationsPage(ttk.Frame):
 
         self.choice_var = tk.StringVar(value="complaint_topic")
 
-        radio_frame = ttk.Frame(op_frame)
-        radio_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        ops = list(self.op_map.items())  # [(key, name), ...]
+        max_per_row = 5
+        col_width = 14  # ✅ 固定宽度（字符），适应 8 个中文
+        h_padding = 25  # 横向间距（像素）
 
-        for i in range(6):
-            radio_frame.columnconfigure(i, weight=1)
+        container = ttk.Frame(op_frame)
+        container.pack(fill=tk.X, anchor="w")
 
-        row = 0
-        for idx, (key, name) in enumerate(self.op_map.items()):
-            rb = tk.Radiobutton(
-                radio_frame,
-                text=name,
-                variable=self.choice_var,
-                value=key,
-                font=("Arial", 9),
-                command=self.on_operation_change
-            )
-            rb.grid(row=row, column=idx, sticky="w", padx=5, pady=3)
+        for i in range(0, len(ops), max_per_row):
+            row_frame = ttk.Frame(container)
+            row_frame.pack(fill=tk.X, pady=2, anchor="w")
+
+            # 创建一个 grid 容器
+            grid_frame = ttk.Frame(row_frame)
+            grid_frame.grid(row=0, column=0, sticky="w")
+            grid_frame.columnconfigure(list(range(max_per_row)), weight=0)  # 禁止拉伸
+
+            for j in range(max_per_row):
+                if i + j < len(ops):
+                    key, name = ops[i + j]
+                    rb = tk.Radiobutton(
+                        grid_frame,
+                        text=name,
+                        variable=self.choice_var,
+                        value=key,
+                        font=("Arial", 9),
+                        command=self.on_operation_change,
+                        indicatoron=True,
+                        selectcolor="lightblue",
+                        width=col_width  # ✅ 强制宽度（字符）
+                    )
+                    rb.grid(row=0, column=j, sticky="w", padx=(0, h_padding), pady=2)
+                    rb.bind("<Button-1>", lambda e, r=rb: r.invoke())
+                else:
+                    # 空白占位，保持列宽一致
+                    empty_label = tk.Label(grid_frame, width=col_width, font=("Arial", 9))
+                    empty_label.grid(row=0, column=j, sticky="w", padx=(0, h_padding), pady=2)
 
         # ===== 参数设置 =====
         input_frame = ttk.LabelFrame(self, text="参数设置", padding=10)
@@ -230,13 +250,13 @@ class BatchOperationsPage(ttk.Frame):
 
         thread = threading.Thread(
             target=self.run_operation,
-            args=(choice, op_name, target_id, selected_accounts, min_delay, max_delay),
+            args=(choice, op_name, target_id, selected_accounts, min_delay, max_delay, self.current_env),
             kwargs=extra_kwargs,  # 传入 content
             daemon=True
         )
         thread.start()
 
-    def run_operation(self, op_key, op_name, target_id, accounts, min_delay, max_delay, **kwargs):
+    def run_operation(self, op_key, op_name, target_id, accounts, min_delay, max_delay, current_env, **kwargs):
         success_count = 0
         base_url = self.get_base_url()
 
@@ -246,7 +266,7 @@ class BatchOperationsPage(ttk.Frame):
                 token = login(self.session_manager, acc['email'], acc['password'], base_url)
                 self.logger.info("✅ 登录成功")
                 # 👉 将 kwargs 传入 execute_operation
-                if execute_operation(op_key, self.session_manager, token, base_url, target_id=target_id, **kwargs):
+                if execute_operation(op_key, self.session_manager, token, base_url, target_id=target_id, env=current_env, **kwargs):
                     success_count += 1
                     self.logger.info(f"✅ {op_name} 成功")
                 else:

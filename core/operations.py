@@ -28,10 +28,22 @@ OPERATIONS = {
         "payload": lambda vid: {"videoId": int(vid)}
     },
     "like_post": {
-        "name": "给帖子点赞",
+        "name": "点赞帖子",
         "url": lambda base: f"{base}/bi/rest/v1/postings/spot",
         "method": "get",
         "params": lambda pid: {'client': '5e972a68a408cada', 'type': 1, 'postId': pid}
+    },
+    "collect_post": {
+        "name": "收藏帖子",
+        "url": lambda base: f"{base}/appco/v1/posting/collections",
+        "method": "post",
+        "payload": lambda pid: {"postingId": str(pid), "state": 1}
+    },
+    "complaint_post": {
+        "name": "投诉帖子",
+        "url": lambda base: f"{base}/appco/v1/complaints",
+        "method": "post",
+        "payload": lambda pid: {"content": "", "causeId": 1, "type": 1, "id": int(pid)}
     },
     "collect_playlist": {
         "name": "收藏播放列表",
@@ -44,12 +56,6 @@ OPERATIONS = {
         "url": lambda base: f"{base}/bff-app/v1/pixel-screen/share-list/share/complaint",
         "method": "post",
         "payload": lambda lid: {"causeId": 1, "communalId": int(lid), "communalType": 5, "content": ""}
-    },
-    "complaint_post": {
-        "name": "投诉帖子",
-        "url": lambda base: f"{base}/appco/v1/complaints",
-        "method": "post",
-        "payload": lambda pid: {"content": "", "causeId": 1, "type": 1, "id": int(pid)}
     },
     # 注意：create_post 不再需要 payload 函数，由 execute_operation 处理
     "create_post": {
@@ -210,7 +216,7 @@ def execute_operation(
                     "email": session.headers.get("X-User-Email", "unknown"),
                     "target_id": result["post_id"],
                     "result": "success" if result["success"] else "failed",
-                    "env":kwargs.get("env"),
+                    "env": kwargs.get("env"),
                     "details": result["msg"]
                 })
 
@@ -288,7 +294,7 @@ def execute_operation(
             "email": session.headers.get("X-User-Email", "unknown"),
             "target_id": kwargs.get("target_id", "N/A"),
             "result": "failed",
-            "env":kwargs.get("env"),
+            "env": kwargs.get("env"),
             "details": str(e)
         })
         return False
