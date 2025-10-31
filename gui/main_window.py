@@ -9,6 +9,7 @@ from gui.pages.single_account import SingleAccountPage
 from gui.pages.history_page import OperationHistoryPage
 from config.__version__ import __version__, __author__, __email__
 from gui.widgets.help_viewer import HelpViewer
+from utils.event_bus import event_bus
 
 
 class MainWindow:
@@ -19,43 +20,61 @@ class MainWindow:
         self.root.minsize(800, 600)
 
         self.current_env = "dev"
-        self.accounts = self.load_default_accounts()
-        self.total_accounts = len(self.accounts)
+        self.accounts = []
+        self.total_accounts = 0
+        self.refresh_accounts()  # 初始化时加载
+        self.setup_event_listeners()
 
         self.setup_styles()
         self.setup_menu()
         self.setup_layout()
         self.show_page(BatchOperationsPage)
 
+    def setup_event_listeners(self):
+        """监听全局账号更新事件"""
+        event_bus.on("accounts_updated", self.on_accounts_updated)
+
+    def on_accounts_updated(self):
+        """当账号更新时，刷新主窗口数据并通知当前页面"""
+        self.refresh_accounts()  # 更新主窗口的 self.accounts 和 self.total_accounts
+
+        if self.current_page and hasattr(self.current_page, "refresh_accounts"):
+            self.current_page.refresh_accounts(self.accounts, self.total_accounts)
+
+    def refresh_accounts(self):
+        """统一刷新当前环境的账号列表"""
+        self.accounts = self.load_default_accounts()
+        self.total_accounts = len(self.accounts)
+
     def load_default_accounts(self):
         from utils.file_loader import load_accounts
-        # 根据当前环境选择文件
-        filename = f"accounts_{self.current_env}.json"
-        file_path = os.path.join("resources", filename)
+        from config.settings import ENV_TO_FILE
 
-        # 使用 resource_path 处理打包后路径
-        from utils import file_loader
-        full_path = file_loader.resource_path(file_path)
+        file_path = ENV_TO_FILE.get(self.current_env)
+        if not file_path or not os.path.exists(file_path):
+            return self.get_fallback_accounts()
 
-        accounts = load_accounts(full_path)
-        if accounts:
-            return accounts
-        else:
-            # fallback 默认账号（按环境提供不同默认值）
-            if self.current_env == "dev":
-                return [
-                    {"email": "mmmm27@somoj.com", "password": "151515jr"},
-                    {"email": "pppp551@somoj.com", "password": "77777777c"},
-                    {"email": "hhhh04@somoj.com", "password": "86868686r"},
-                    {"email": "zzzz425@somoj.com", "password": "14141414u"},
-                    {"email": "ttt88@somoj.com", "password": "595959wk"},
-                ]
-            elif self.current_env == "pda":
-                return [
-                    {"email": "test1@pda.com", "password": "123456"},
-                    {"email": "test2@pda.com", "password": "123456"},
-                ]
-            return []
+        accounts = load_accounts(file_path)
+        if accounts is None:
+            return self.get_fallback_accounts()
+        return accounts
+
+    def get_fallback_accounts(self):
+        """返回对应环境的默认测试账号"""
+        if self.current_env == "dev":
+            return [
+                {"email": "mmmm27@somoj.com", "password": "151515jr"},
+                {"email": "pppp551@somoj.com", "password": "77777777c"},
+                {"email": "hhhh04@somoj.com", "password": "86868686r"},
+                {"email": "zzzz425@somoj.com", "password": "14141414u"},
+                {"email": "ttt88@somoj.com", "password": "595959wk"},
+            ]
+        elif self.current_env == "pda":
+            return [
+                {"email": "test1@pda.com", "password": "123456"},
+                {"email": "test2@pda.com", "password": "123456"},
+            ]
+        return []
 
     def setup_styles(self):
         style = ttk.Style()
@@ -157,17 +176,17 @@ class MainWindow:
         # 更新环境标签
         self.env_label.config(text=f"📍 当前环境: {env.upper()}")
 
-        # 🔁 重新加载该环境的默认账号
-        self.accounts = self.load_default_accounts()
-        self.total_accounts = len(self.accounts)
-
         # 🔄 如果当前页面支持环境切换，通知它
         if self.current_page and hasattr(self.current_page, "on_environment_changed"):
             self.current_page.on_environment_changed(env)
 
-        # 🔄 如果当前页面是 AccountToolPage 或 BatchOperationsPage，需要刷新账号和 UI
-        if hasattr(self.current_page, 'refresh_accounts'):
-            self.current_page.refresh_accounts(self.accounts, self.total_accounts)
+        # ✅ 刷新账号并触发事件
+        self.refresh_accounts()
+        event_bus.emit("accounts_updated")  # 触发刷新，所有页面响应
+
+        # # 🔄 如果当前页面是 AccountToolPage 或 BatchOperationsPage，需要刷新账号和 UI
+        # if hasattr(self.current_page, 'refresh_accounts'):
+        #     self.current_page.refresh_accounts(self.accounts, self.total_accounts)
 
         messagebox.showinfo("切换成功", f"已切换到 {env.upper()} 环境\n并加载 {self.total_accounts} 个账号。")
 

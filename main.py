@@ -16,7 +16,7 @@ except ImportError:
 
 
 def ensure_resources():
-    resources_dir = os.path.join(os.path.dirname(__file__), "resources")
+    resources_dir = os.path.join(os.path.dirname(__file__), "accounts")
     help_file = file_loader.resource_path("resources/help.md")
     if not os.path.exists(help_file):
         os.makedirs(resources_dir, exist_ok=True)

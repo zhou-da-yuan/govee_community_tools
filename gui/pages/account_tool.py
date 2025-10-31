@@ -10,6 +10,7 @@ from core.email_verifier import EmailVerifier
 from gui.widgets.log_text import LogText
 from core.auth import login
 from core.session_manager import SessionManager
+from utils.event_bus import event_bus
 from utils.file_loader import load_accounts
 import threading
 import os
@@ -342,21 +343,14 @@ class AccountToolPage(ttk.Frame):
                 self.log("❌ 未生成任何账号。")
                 return
 
-            # 添加到全局列表
-            self.accounts.extend(generated)
-            self.valid_accounts.extend(generated)
-            self.total_accounts = len(self.accounts)
-
-            # 📁 自动保存到对应环境文件
+            # 保存到文件（不变）
             file_path = ENV_TO_FILE.get(self.current_env)
             if not file_path:
                 self.log(f"⚠️ 未知环境：{self.current_env}，跳过保存。")
                 return
 
-            # 确保目录存在
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-            # 读取原文件内容（避免覆盖）
             existing_accounts = []
             if os.path.exists(file_path):
                 try:
@@ -367,27 +361,24 @@ class AccountToolPage(ttk.Frame):
                 except Exception as e:
                     self.log(f"⚠️ 读取历史账号失败（将新建）：{str(e)}")
 
-            # 合并并去重（按 email 去重）
             email_set = {acc['email'] for acc in existing_accounts}
             new_unique = [acc for acc in generated if acc['email'] not in email_set]
             updated_accounts = existing_accounts + new_unique
 
-            # 写回文件
             try:
                 with open(file_path, 'w', encoding='utf-8') as f:
                     json.dump(updated_accounts, f, indent=2, ensure_ascii=False)
                 self.log(f"💾 已将 {len(new_unique)} 个新账号保存至: {file_path}")
-                if len(new_unique) < len(generated):
-                    self.log(f"ℹ️  共 {len(generated) - len(new_unique)} 个重复邮箱被跳过。")
             except Exception as e:
                 self.log(f"❌ 保存文件失败: {str(e)}")
+                return
 
-            # ✅ 刷新表格
-            self.refresh_account_table()
+                # ✅ 保存成功后，触发全局事件
+            if updated_accounts:
+                # 通知所有监听者：账号已更新
+                event_bus.emit("accounts_updated")
 
-            # 更新 UI
-            self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
-            self.log(f"\n🎉 成功生成 {len(generated)} 个账号，当前共 {self.total_accounts} 个账号。\n")
+            self.log(f"\n🎉 成功生成 {len(new_unique)} 个新账号，共 {len(updated_accounts)} 个。\n")
 
         except Exception as e:
             self.log(f"❌ 生成过程中发生错误: {str(e)}")
@@ -490,8 +481,12 @@ class AccountToolPage(ttk.Frame):
             self.accounts = accounts
             self.total_accounts = len(accounts)
             self.valid_accounts = []
-            self.refresh_account_table()  # ✅ 刷新表格
+            self.refresh_account_table()
             self.log(f"🔄 已从 {file_path} 重新加载 {self.total_accounts} 个账号。")
+
+            # ✅ 触发全局账号更新事件
+            from utils.event_bus import event_bus
+            event_bus.emit("accounts_updated")
         else:
             self.log(f"❌ 文件为空或格式错误：{file_path}")
 
@@ -533,7 +528,6 @@ class AccountToolPage(ttk.Frame):
     def on_environment_changed(self, new_env):
         self.current_env = new_env
         self.log(f"🔄 环境已切换至: {new_env.upper()}")
-        self.reload_current_file()  # 自动刷新账号和表格
 
     def refresh_account_table(self):
         """清空并重新填充账号表格"""
@@ -566,3 +560,13 @@ class AccountToolPage(ttk.Frame):
             self.log(f"📋 已复制邮箱到剪贴板: {email}")
         except Exception as e:
             self.log(f"❌ 无法复制到剪贴板: {str(e)}")
+
+    def refresh_accounts(self, new_accounts, total_count):
+        """外部调用：刷新账号列表和 UI 显示"""
+        self.accounts = new_accounts.copy()
+        self.total_accounts = total_count
+        self.valid_accounts = []
+        # ✅ 刷新 UI 上的账号数
+        self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
+        self.refresh_account_table()  # ✅ 刷新表格
+        self.log(f"🔄 已刷新账号列表，共 {self.total_accounts} 个账号（来自 {self.current_env} 环境）")

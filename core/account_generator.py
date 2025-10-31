@@ -151,7 +151,7 @@ class AccountGenerator:
             "transaction": str(int(time.time() * 1000))
         }
         resp = requests.post(url, headers=self.headers, json=payload, verify=False)
-        if resp.status_code != 200:
+        if resp.status_code != 200 or resp.json().status != 200:
             raise Exception("注册失败: %s", resp.text)
 
     def login(self, email: str, password: str):

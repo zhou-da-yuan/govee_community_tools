@@ -266,7 +266,8 @@ class BatchOperationsPage(ttk.Frame):
                 token = login(self.session_manager, acc['email'], acc['password'], base_url)
                 self.logger.info("✅ 登录成功")
                 # 👉 将 kwargs 传入 execute_operation
-                if execute_operation(op_key, self.session_manager, token, base_url, target_id=target_id, env=current_env, **kwargs):
+                if execute_operation(op_key, self.session_manager, token, base_url, target_id=target_id,
+                                     env=current_env, **kwargs):
                     success_count += 1
                     self.logger.info(f"✅ {op_name} 成功")
                 else:
@@ -304,3 +305,11 @@ class BatchOperationsPage(ttk.Frame):
     def on_environment_changed(self, new_env):
         self.current_env = new_env
         self.logger.info(f"🔄 环境已切换至: {new_env.upper()}")
+
+    def refresh_accounts(self, new_accounts, total_count):
+        """外部调用：刷新账号列表和 UI 显示"""
+        self.accounts = new_accounts.copy()
+        self.total_accounts = total_count
+        # ✅ 刷新 UI 上的账号数
+        self.account_count_var.set(f"📦 当前账号数: {self.total_accounts}")
+        self.log(f"🔄 已刷新账号列表，共 {self.total_accounts} 个账号（来自 {self.current_env} 环境）")
