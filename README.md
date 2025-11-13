@@ -30,6 +30,9 @@ govee_community_tools/
 │   ├── admin_operations.py
 │   └── admin_session.py
 ├── data/                     # 数据存储目录
+│   ├── accounts              # 账号数据
+│       ├── accounts_dev.json     # DEV 环境账号配置
+│       ├── accounts_pda.json     # PDA 环境账号配置
 │   └── history/              # 历史记录
 ├── gui/                      # 图形用户界面
 │   ├── pages/                # 功能界面
@@ -48,8 +51,6 @@ govee_community_tools/
 ├── logs/                     # 日志文件
 │   └── app.log
 ├── resources/                # 资源文件
-│   ├── accounts_dev.json     # DEV环境账号配置
-│   ├── accounts_pda.json     # PDA 环境账号配置
 │   └── help.md               # 使用帮助文档
 ├── utils/                    # 工具函数
 │   ├── __init__.py
