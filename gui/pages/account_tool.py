@@ -62,7 +62,7 @@ class AccountToolPage(ttk.Frame):
 
         # 按钮顺序优化（移除了“重载当前文件”）
         ttk.Button(btn_frame, text="📁 加载账号文件", command=self.load_accounts_file).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="🔍 验证全部账号", style="Accent.TButton",
+        ttk.Button(btn_frame, text="🔍 验证账号有效性", style="Accent.TButton",
                    command=self.validate_all_accounts).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="🆕 生成随机账号", style="Success.TButton",
                    command=self.generate_accounts_gui).pack(side=tk.LEFT, padx=5)
@@ -147,7 +147,7 @@ class AccountToolPage(ttk.Frame):
         # 创建延迟设置弹窗
         dialog = tk.Toplevel(self)
         dialog.title("设置验证延迟")
-        dialog.geometry("320x180")
+        dialog.geometry("360x220")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()

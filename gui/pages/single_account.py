@@ -316,7 +316,7 @@ class SingleAccountPage(ttk.Frame):
             else:
                 self.logger.error(f"❌ 操作失败: {result['msg']}")
 
-    def run_admin_operation(self, op_key, email, password, base_url):
+    def run_admin_operation(self, op_key, email, password, base_url,current_env):
         op_name = self.operations[op_key]["name"]
         self.logger.info(f"🚀 开始执行管理员操作: {op_name}")
 
@@ -362,7 +362,7 @@ class SingleAccountPage(ttk.Frame):
             aid=aid,
             points=points,
             admin_username="dayuan_zhou",
-            admin_password="Govee1234"
+            admin_password="Govee1234",
         )
 
         for r in admin_result["results"]:

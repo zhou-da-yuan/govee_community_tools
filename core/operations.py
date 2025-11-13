@@ -21,11 +21,17 @@ OPERATIONS = {
         "method": "post",
         "payload": lambda vid: {"content": "", "causeId": 1, "type": 2, "id": int(vid)}
     },
-    "like_diy_video": {
+    "collect_diy_video": {
         "name": "收藏DIY视频",
         "url": lambda base: f"{base}/app/v1/diy-videos/collections",
         "method": "post",
         "payload": lambda vid: {"videoId": int(vid)}
+    },
+    "like_diy_video": {
+        "name": "点赞DIY视频",
+        "url": lambda base: f"{base}/bi/rest/v2/evals/likes",
+        "method": "post",
+        "payload": lambda vid: {"videoId": int(vid),"state":1}
     },
     "like_post": {
         "name": "点赞帖子",
@@ -51,11 +57,23 @@ OPERATIONS = {
         "method": "post",
         "payload": lambda lid: {"id": int(lid), "state": 1}
     },
+    "like_playlist": {
+        "name": "点赞播放列表",
+        "url": lambda base: f"{base}/bff-app/v1/pixel-screen/share-list/like",
+        "method": "post",
+        "payload": lambda lid: {"id": int(lid), "state": 1}
+    },
     "complaint_playlist": {
         "name": "投诉播放列表",
         "url": lambda base: f"{base}/bff-app/v1/pixel-screen/share-list/share/complaint",
         "method": "post",
         "payload": lambda lid: {"causeId": 1, "communalId": int(lid), "communalType": 5, "content": ""}
+    },
+    "like_light_effect": {
+        "name": "点赞图片灯效",
+        "url": lambda base: f"{base}/appco/v1/light-square/picture-effect/likes",
+        "method": "post",
+        "payload": lambda effect_id: {"effectId": int(effect_id), "state": 1, "sku": ""}
     },
     # 注意：create_post 不再需要 payload 函数，由 execute_operation 处理
     "create_post": {
@@ -69,7 +87,7 @@ OPERATIONS = {
         },
         "placeholders": {
             "content": "请输入要发布的内容...",
-            "count": "输入发布数量"
+            "count": "输入发布数量(默认1)"
         },
         # payload 移除，由内部 build_create_post_payload 处理
     },
@@ -98,6 +116,23 @@ OPERATIONS = {
             "postId": str(post_id),
             "firstCommentOriginal": content,
             "atUser": []
+        }
+    },
+    # 需要两个参数，暂时先不做
+    # "collect_music_create": {
+    #     "name": "收藏音乐创作",
+    #     "url": lambda base: f"{base}/bff-app/v1/music-create/collects",
+    #     "method": "post",
+    #     "payload": lambda lid: {"musicShareId": str(lid), "state": 1}
+    # },
+    "follow_user": {
+        "name": "新增Followers",
+        "url": lambda base: f"{base}/appco/v1/users/subscription",
+        "method": "post",
+        "payload": lambda identity: {
+            "identity": str(identity),
+            "identityType": 2,
+            "subscribe": 1
         }
     },
     # "get_aid": {

@@ -23,7 +23,7 @@ ADMIN_OPERATIONS = {
         "method": "POST",
         "url_path": lambda: POINTS_CONFIG["grant_points"]["url_path"],
         "payload": lambda aid, points: {
-            "title": "积分发放",
+            "title": "Bonus Points Test",
             "type": "13",
             "integralList": [
                 {

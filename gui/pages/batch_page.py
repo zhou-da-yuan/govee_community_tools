@@ -113,50 +113,56 @@ class BatchOperationsPage(ttk.Frame):
         input_frame = ttk.LabelFrame(self, text="参数设置", padding=10)
         input_frame.pack(fill=tk.X, pady=10)
 
-        # 配置列：支持四列布局
-        input_frame.columnconfigure(0, weight=0)  # 标签1
-        input_frame.columnconfigure(1, weight=1)  # 输入1
-        input_frame.columnconfigure(2, weight=0)  # 标签2 (评论)
-        input_frame.columnconfigure(3, weight=2)  # 输入2 (评论内容)
+        # --- 子 Frame 1: 目标ID + 评论内容 ---
+        target_frame = ttk.Frame(input_frame)
+        target_frame.pack(fill=tk.X, pady=2)
 
-        # ===== 第一行：目标ID + 评论内容 =====
-        tk.Label(input_frame, text="目标ID:", font=("Arial", 9)).grid(row=0, column=0, sticky=tk.W, padx=(0, 5), pady=3)
+        tk.Label(target_frame, text="目标ID:", font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 5))
         self.target_id_entry = PlaceholderEntry(
-            input_frame,
-            placeholder="话题ID/视频ID/帖子ID",  # 添加灰色提示文字
+            target_frame,
+            placeholder="话题ID/视频ID/帖子ID/播放列表ID",
             width=30,
             font=("Consolas", 10)
         )
-        self.target_id_entry.grid(row=0, column=1, sticky=tk.W, padx=(0, 5), pady=3)
+        self.target_id_entry.pack(side=tk.LEFT, padx=(0, 15))
 
-        self.comment_label = tk.Label(input_frame, text="评论内容:", font=("Arial", 9))
-        self.comment_content_entry = tk.Entry(input_frame, width=40, font=("Consolas", 10))
+        # 评论内容（初始隐藏）
+        self.comment_label = tk.Label(target_frame, text="评论内容:", font=("Arial", 9))
+        self.comment_content_entry = tk.Entry(target_frame, width=40, font=("Consolas", 10))
         self.comment_content_entry.insert(0, "This is the default comment content for testing")
 
         # 初始隐藏
-        self.comment_label.grid_remove()
-        self.comment_content_entry.grid_remove()
+        self.comment_label.pack_forget()
+        self.comment_content_entry.pack_forget()
 
-        # ===== 第二行：使用账号数 =====
-        tk.Label(input_frame, text="使用账号数:", font=("Arial", 9)).grid(row=1, column=0, sticky=tk.W, padx=(0, 5),
-                                                                          pady=3)
-        self.num_accounts_entry = tk.Entry(input_frame, width=8, font=("Consolas", 10))
+        # --- 子 Frame 2: 使用账号数 + 起始位置 ---
+        account_frame = ttk.Frame(input_frame)
+        account_frame.pack(fill=tk.X, pady=2)
+
+        tk.Label(account_frame, text="使用账号数:", font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 5))
+        self.num_accounts_entry = tk.Entry(account_frame, width=8, font=("Consolas", 10))
         self.num_accounts_entry.insert(0, str(min(5, self.total_accounts)))
-        self.num_accounts_entry.grid(row=1, column=1, sticky=tk.W, padx=(0, 5), pady=3)
+        self.num_accounts_entry.pack(side=tk.LEFT, padx=(0, 40))
 
-        # ===== 第三行：延迟 (最小秒) =====
-        tk.Label(input_frame, text="延迟 (最小秒):", font=("Arial", 9)).grid(row=2, column=0, sticky=tk.W, padx=(0, 5),
-                                                                             pady=3)
-        self.min_delay_entry = tk.Entry(input_frame, width=6, font=("Consolas", 10))
+        tk.Label(account_frame, text="起始账号位置:", font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 5))
+        self.start_index_entry = tk.Entry(account_frame, width=8, font=("Consolas", 10))
+        self.start_index_entry.insert(0, "1")
+        self.start_index_entry.pack(side=tk.LEFT, padx=(0, 0))
+
+        # --- 子 Frame 3: 延迟设置 ---
+        delay_frame1 = ttk.Frame(input_frame)
+        delay_frame1.pack(fill=tk.X, pady=2)
+        tk.Label(delay_frame1, text="延迟 (最小秒):", font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 5))
+        self.min_delay_entry = tk.Entry(delay_frame1, width=6, font=("Consolas", 10))
         self.min_delay_entry.insert(0, "2")
-        self.min_delay_entry.grid(row=2, column=1, sticky=tk.W, padx=(0, 5), pady=3)
+        self.min_delay_entry.pack(side=tk.LEFT, padx=(0, 15))
 
-        # ===== 第四行：延迟 (最大秒) =====
-        tk.Label(input_frame, text="延迟 (最大秒):", font=("Arial", 9)).grid(row=3, column=0, sticky=tk.W, padx=(0, 5),
-                                                                             pady=3)
-        self.max_delay_entry = tk.Entry(input_frame, width=6, font=("Consolas", 10))
+        delay_frame2 = ttk.Frame(input_frame)
+        delay_frame2.pack(fill=tk.X, pady=2)
+        tk.Label(delay_frame2, text="延迟 (最大秒):", font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 5))
+        self.max_delay_entry = tk.Entry(delay_frame2, width=6, font=("Consolas", 10))
         self.max_delay_entry.insert(0, "5")
-        self.max_delay_entry.grid(row=3, column=1, sticky=tk.W, padx=(0, 5), pady=3)
+        self.max_delay_entry.pack(side=tk.LEFT, padx=(0, 15))
 
         # ===== 按钮区域 =====
         btn_frame = ttk.Frame(self)
@@ -177,11 +183,11 @@ class BatchOperationsPage(ttk.Frame):
         """根据选择的操作显示/隐藏评论内容整组"""
         choice = self.choice_var.get()
         if choice == "comment_post":
-            self.comment_label.grid(row=0, column=2, sticky=tk.W, padx=(15, 5), pady=3)  # 左对齐，适当间距
-            self.comment_content_entry.grid(row=0, column=3, sticky=tk.W, padx=(0, 0), pady=3)  # 紧贴标签
+            self.comment_label.pack(side=tk.LEFT, padx=(0, 5))
+            self.comment_content_entry.pack(side=tk.LEFT)
         else:
-            self.comment_label.grid_remove()
-            self.comment_content_entry.grid_remove()
+            self.comment_label.pack_forget()
+            self.comment_content_entry.pack_forget()
 
     # 👉 替代原 log 方法：使用 logger.info/debug/error
     def log(self, message, level="info"):
@@ -234,9 +240,30 @@ class BatchOperationsPage(ttk.Frame):
             messagebox.showwarning("⚠️ 警告", "账号数量必须是正整数！")
             return
 
-        selected_accounts = self.accounts[:num_accounts]
+            # 👉 新增：起始位置处理
+        start_input = self.start_index_entry.get().strip()
+        try:
+            start_index = int(start_input)
+            if start_index < 1:
+                raise ValueError
+        except Exception:
+            messagebox.showwarning("⚠️ 警告", "起始位置必须是 ≥1 的整数！")
+            return
+
+        if start_index > self.total_accounts:
+            messagebox.showwarning("⚠️ 警告", f"起始位置 {start_index} 超出总账号数 {self.total_accounts}！")
+            return
+
+        end_index = start_index - 1 + num_accounts
+        selected_accounts = self.accounts[start_index - 1: min(end_index, self.total_accounts)]
+
+        if len(selected_accounts) == 0:
+            messagebox.showwarning("⚠️ 警告", "没有可操作的账号，请检查起始位置和账号数量！")
+            return
+
         op_name = self.op_map[choice]
-        self.logger.info(f"🚀 开始执行: {op_name} | ID: {target_id} | 账号数: {num_accounts}")
+        self.logger.info(
+            f"🚀 开始执行: {op_name} | ID: {target_id} | 账号数: {len(selected_accounts)} | 起始位置: #{start_index}")
         self.logger.info(f"⏱️  操作延迟: {min_delay:.1f} ~ {max_delay:.1f} 秒")
 
         # 👉 获取评论内容（仅 comment_post 需要）
@@ -259,27 +286,37 @@ class BatchOperationsPage(ttk.Frame):
     def run_operation(self, op_key, op_name, target_id, accounts, min_delay, max_delay, current_env, **kwargs):
         success_count = 0
         base_url = self.get_base_url()
+        total = len(accounts)
 
         for idx, acc in enumerate(accounts, 1):
-            self.logger.info(f"--- [{idx}/{len(accounts)}] 账号: {acc['email']} ---")
+            self.logger.info(f"--- [{idx}/{total}] 账号: {acc['email']} ---")
             try:
                 token = login(self.session_manager, acc['email'], acc['password'], base_url)
                 self.logger.info("✅ 登录成功")
-                # 👉 将 kwargs 传入 execute_operation
                 if execute_operation(op_key, self.session_manager, token, base_url, target_id=target_id,
                                      env=current_env, **kwargs):
                     success_count += 1
                     self.logger.info(f"✅ {op_name} 成功")
                 else:
                     self.logger.error(f"❌ {op_name} 失败")
-                delay = random.uniform(min_delay, max_delay)
-                self.logger.info(f"⏸️  等待 {delay:.1f} 秒...")
-                time.sleep(delay)
+
+                # 👉 只有不是最后一个账号时才等待
+                if idx < total:
+                    delay = random.uniform(min_delay, max_delay)
+                    self.logger.info(f"⏸️  等待 {delay:.1f} 秒...")
+                    time.sleep(delay)
+                else:
+                    self.logger.info("🔚 最后一个账号，跳过延迟。")
+
             except Exception as e:
                 self.logger.error(f"🚫 错误: {str(e)}")
-                continue
+                # 即使出错，如果是最后一个也不用等
+                if idx < total:
+                    delay = random.uniform(min_delay, max_delay)
+                    self.logger.info(f"⏸️  异常后等待 {delay:.1f} 秒...")
+                    time.sleep(delay)
 
-        self.logger.info(f"\n🎉 完成！共 {len(accounts)} 个账号，成功 {success_count} 次。\n")
+        self.logger.info(f"\n🎉 完成！共 {total} 个账号，成功 {success_count} 次。\n")
 
     def reload_current_file(self):
         """从当前环境对应的文件重新加载账号"""
