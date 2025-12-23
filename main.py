@@ -31,6 +31,6 @@ if __name__ == "__main__":
     app = MainWindow(root)
 
     # 可选：在窗口标题显示版本
-    root.title(f"Govee 社区工具 v{__version__}")
+    root.title(f"Govee 社区工具 {__version__}")
 
     root.mainloop()

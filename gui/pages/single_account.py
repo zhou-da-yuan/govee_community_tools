@@ -87,7 +87,7 @@ class SingleAccountPage(ttk.Frame):
         ttk.Button(btn_frame, text="▶️ 执行操作", style="Accent.TButton",
                    command=self.start_operation).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="🗑️ 清空日志", command=self.clear_log).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="🔍 获取 AID", command=self.get_aid).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="🔍 获取账号 AID", command=self.get_aid).pack(side=tk.LEFT, padx=5)
 
         log_frame = ttk.LabelFrame(self, text="📝 运行日志", padding=10)
         log_frame.pack(fill=tk.BOTH, expand=True, pady=10)
@@ -153,32 +153,36 @@ class SingleAccountPage(ttk.Frame):
             "sn": "设备 SN",
             "count": "发布数量",
             "content": "发布内容",
-            "target_id": "目标帖子ID"
+            "target_id": "目标帖子ID",
+            "circle_id": "圈子ID",
+            "topic_id": "话题ID"
         }
 
         defaults = op.get("defaults", {})
         placeholders = op.get("placeholders", {})
 
-        row = 0
-        for param in params:
-            label_text = label_map.get(param, param.title())
-            tk.Label(self.param_frame, text=label_text).grid(row=row, column=0, padx=5, pady=5, sticky="e")
+        # 统一采用双列布局：每行最多两个参数
+        for idx, param in enumerate(params):
+            row = idx // 2  # 每两列换一行
+            col_offset = (idx % 2) * 2  # 偶数索引 → col 0/1，奇数索引 → col 2/3
 
-            # 👉 创建 PlaceholderEntry
+            label_text = label_map.get(param, param.title())
+            tk.Label(self.param_frame, text=label_text).grid(
+                row=row, column=col_offset, padx=5, pady=5, sticky="e"
+            )
+
             entry = PlaceholderEntry(
                 self.param_frame,
-                placeholder=placeholders.get(param, ""),  # 使用占位符
-                width=30,
+                placeholder=placeholders.get(param, ""),
+                width=28,  # 稍微窄一点，适应两列
                 font=("Consolas", 10)
             )
-            entry.grid(row=row, column=1, padx=5, pady=5)
+            entry.grid(row=row, column=col_offset + 1, padx=5, pady=5, sticky="w")
 
-            # 👉 设置默认值（真实内容）
             if param in defaults:
-                entry.set(defaults[param])  # ⚠️ 关键：必须调用 .set()，不是 .insert()
+                entry.set(defaults[param])
 
             self.param_widgets[param] = entry
-            row += 1
 
     def start_operation(self):
         selected_name = self.op_combo.get()
@@ -234,13 +238,37 @@ class SingleAccountPage(ttk.Frame):
         # === 特殊处理：发帖 ===
         if op_key == "create_post":
             try:
-                count = max(1, min(50, int(self.param_widgets["count"].get())))
+                count = max(1, min(100, int(self.param_widgets["count"].get())))
             except:
                 count = 1
             content = self.param_widgets["content"].get().strip() or "This is an automatically published test content."
 
-            result = execute_operation(op_key, self.session_manager, token, base_url,
-                                       count=count, content=content, env=current_env)
+            # 新增：读取 circle_id 和 topic_id
+            circle_id_str = self.param_widgets["circle_id"].get().strip()
+            topic_id_str = self.param_widgets["topic_id"].get().strip()
+
+            # 尝试转为整数，失败则用默认 -1（后端会处理）
+            try:
+                circle_id = int(circle_id_str) if circle_id_str.strip() != "" else -1
+            except ValueError:
+                circle_id = -1
+
+            try:
+                topic_id = int(topic_id_str) if topic_id_str.strip() != "" else -1
+            except ValueError:
+                topic_id = -1
+
+            result = execute_operation(
+                op_key,
+                self.session_manager,
+                token,
+                base_url,
+                count=count,
+                content=content,
+                circle_id=circle_id,
+                topic_id=topic_id,
+                env=current_env
+            )
 
             for i, r in enumerate(result["results"]):
                 status = "✅" if r["success"] else "❌"
@@ -316,7 +344,7 @@ class SingleAccountPage(ttk.Frame):
             else:
                 self.logger.error(f"❌ 操作失败: {result['msg']}")
 
-    def run_admin_operation(self, op_key, email, password, base_url,current_env):
+    def run_admin_operation(self, op_key, email, password, base_url, current_env):
         op_name = self.operations[op_key]["name"]
         self.logger.info(f"🚀 开始执行管理员操作: {op_name}")
 
@@ -362,7 +390,7 @@ class SingleAccountPage(ttk.Frame):
             aid=aid,
             points=points,
             admin_username="dayuan_zhou",
-            admin_password="Govee1234",
+            admin_password="Govee12345",
         )
 
         for r in admin_result["results"]:

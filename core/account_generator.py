@@ -151,13 +151,13 @@ class AccountGenerator:
             "transaction": str(int(time.time() * 1000))
         }
         resp = requests.post(url, headers=self.headers, json=payload, verify=False)
-        if resp.status_code != 200 or resp.json().status != 200:
+        if resp.status_code != 200 or resp.json().get("status", 0) != 200:
             raise Exception("注册失败: %s", resp.text)
 
     def login(self, email: str, password: str):
         url = f"{self.base_url}/account/rest/account/v1/login"
         payload = {
-            "client": "R28M61PLYNX",
+            # "client": "R28M61PLYNX",
             "email": email,
             "password": password,
             "key": "",

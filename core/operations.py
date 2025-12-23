@@ -31,7 +31,7 @@ OPERATIONS = {
         "name": "点赞DIY视频",
         "url": lambda base: f"{base}/bi/rest/v2/evals/likes",
         "method": "post",
-        "payload": lambda vid: {"videoId": int(vid),"state":1}
+        "payload": lambda vid: {"videoId": int(vid), "state": 1}
     },
     "like_post": {
         "name": "点赞帖子",
@@ -81,15 +81,16 @@ OPERATIONS = {
         "url": lambda base: f"{base}/bff-app/v1/community/posting/details",
         "method": "post",
         "support_single": True,
-        "params": ["count", "content"],
+        "params": ["count", "content", "circle_id", "topic_id"],  # 👈 新增两个参数
         "defaults": {
             "content": "This is an automatically published test content.",
         },
         "placeholders": {
             "content": "请输入要发布的内容...",
-            "count": "输入发布数量(默认1)"
+            "count": "输入发布数量(默认1)",
+            "circle_id": "圈子ID（可选）",
+            "topic_id": "话题ID（可选）"
         },
-        # payload 移除，由内部 build_create_post_payload 处理
     },
     "comment_post": {
         "name": "发布帖子评论",
@@ -102,7 +103,7 @@ OPERATIONS = {
         },
         "placeholders": {
             "content": "请输入评论内容...",
-            "count": "输入评论数量 (1-100)",
+            "count": "输入评论数量(默认1)",
             "target_id": "请输入目标帖子ID"
         },
         "payload": lambda content, post_id: {
@@ -129,11 +130,7 @@ OPERATIONS = {
         "name": "新增Followers",
         "url": lambda base: f"{base}/appco/v1/users/subscription",
         "method": "post",
-        "payload": lambda identity: {
-            "identity": str(identity),
-            "identityType": 2,
-            "subscribe": 1
-        }
+        # 不再使用静态 payload，改为动态生成（需 myIdentity）
     },
     # "get_aid": {
     #     "name": "获取 AID",
@@ -144,9 +141,9 @@ OPERATIONS = {
 }
 
 
-def build_create_post_payload(title_suffix: str, content_text: str):
+def build_create_post_payload(title_suffix: str, content_text: str, circle_id: int = -1, topic_id: int = -1):
     """
-    构建发帖 payload，contentV2 为字符串化 JSON
+    构建发帖 payload，支持指定圈子和话题
     """
     content_html = f"<p class=\"new-posting-content\">{content_text}</p>"
     content_v2_dict = {
@@ -161,14 +158,14 @@ def build_create_post_payload(title_suffix: str, content_text: str):
         "title": f"AutoPost-{title_suffix}",
         "h5Url": "",
         "labelId": None,
-        "circleId": -1,
+        "circleId": circle_id,  # 👈 使用传入的 circle_id
         "atUsers": [],
         "content": "",
         "contentV2": content_v2_str,
         "urls": [],
         "products": [],
         "draftId": -1,
-        "topicId": -1,
+        "topicId": topic_id,  # 👈 使用传入的 topic_id
         "topicName": "",
         "topicDes": "",
         "needVote": False,
@@ -205,12 +202,24 @@ def execute_operation(
             # 处理批量发帖
             count = kwargs.get("count", 1)
             content_text = kwargs.get("content", "This is an automatically published test content.。")
+
+            # 👇 解析 circle_id 和 topic_id，转为 int；若无效则默认 -1
+            try:
+                circle_id = int(kwargs.get("circle_id", -1))
+            except (TypeError, ValueError):
+                circle_id = -1
+
+            try:
+                topic_id = int(kwargs.get("topic_id", -1))
+            except (TypeError, ValueError):
+                topic_id = -1
+
             success_count = 0
             results = []
 
             for i in range(count):
                 title_suffix = f"{int(time.time()) % 10000}-{i + 1}"
-                payload = build_create_post_payload(title_suffix, content_text)
+                payload = build_create_post_payload(title_suffix, content_text, circle_id, topic_id)
 
                 try:
                     res = session.post(url, headers=headers, json=payload)
@@ -291,6 +300,49 @@ def execute_operation(
                 "result": "success" if result else "failed",
                 "env": kwargs.get("env"),
                 "details": res.json()
+            })
+
+            return result
+
+        elif op_key == "follow_user":
+            target_identity = kwargs.get("target_id")
+            if not target_identity:
+                raise ValueError("缺少 target_id（被关注用户的 identity）")
+
+            # 👉 先获取当前用户的 AID (myIdentity)
+            aid_result = get_user_aid(session_manager, token, base_url)
+            if not aid_result["success"]:
+                logging.error(f"获取 myIdentity 失败: {aid_result['msg']}")
+                save_history({
+                    "operation": op_name,
+                    "email": session.headers.get("X-User-Email", "unknown"),
+                    "target_id": target_identity,
+                    "result": "failed",
+                    "env": kwargs.get("env"),
+                    "details": f"获取 myIdentity 失败: {aid_result['msg']}"
+                })
+                return False
+
+            my_identity = aid_result["aid"]
+
+            # 构造 payload
+            payload = {
+                "identity": str(target_identity),
+                "identityType": 2,
+                "subscribe": 1,
+                "myIdentity": str(my_identity)  # 👈 新增字段
+            }
+
+            res = session.post(url, headers=headers, json=payload)
+            result = res.status_code == 200 and res.json().get("status") == 200
+
+            save_history({
+                "operation": op_name,
+                "email": session.headers.get("X-User-Email", "unknown"),
+                "target_id": target_identity,
+                "result": "success" if result else "failed",
+                "env": kwargs.get("env"),
+                "details": res.json() if result else str(res.text)
             })
 
             return result
