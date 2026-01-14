@@ -3,9 +3,13 @@
 import requests
 import json
 from typing import Dict, Any
-from config.admin_settings import ADMIN_AdminApiENV_CONFIG, POINTS_CONFIG
+from config.admin_settings import (
+    ADMIN_AdminApiENV_CONFIG,
+    POINTS_CONFIG,
+    ADMIN_CREDENTIALS  # ✅ 新增导入
+)
 from .admin_session import AdminSession
-from utils.history import save_history  # ✅ 导入历史记录模块
+from utils.history import save_history
 
 # --- 全局会话 ---
 _admin_session = AdminSession()
@@ -15,7 +19,10 @@ ADMIN_OPERATIONS = {
     "grant_points": {
         "name": "🎁 积分发放(活动奖励)",
         "description": "向指定用户发放积分",
-        "params": ["aid", "points"],
+        "params": [
+            {"name": "aid", "label": "用户AID"},
+            {"name": "points", "label": "积分数量"},
+        ],
         "placeholders": {
             "aid": "输入了账号信息则无需输入AID",
         },
@@ -37,7 +44,10 @@ ADMIN_OPERATIONS = {
     "deduct_points": {
         "name": "🚫 积分扣除",
         "description": "扣除指定用户积分",
-        "params": ["aid", "points"],
+        "params": [
+            {"name": "aid", "label": "用户AID"},
+            {"name": "points", "label": "积分数量"},
+        ],
         "placeholders": {
             "aid": "输入了账号信息则无需输入AID",
         },
@@ -63,45 +73,51 @@ ADMIN_OPERATIONS = {
 
 
 # --- 工具函数 ---
-def _get_admin_token(env: str, username: str, password: str) -> tuple:
+
+
+def _get_admin_token(env: str) -> tuple:
     """
-    获取管理员 token 和邮箱
+    获取管理员 token 和邮箱（凭据从配置中读取）
     返回: (token: str, email: str)
     """
     if _admin_session.is_valid():
         return _admin_session.get_token(), _admin_session.get_email()
 
     from .admin_auth import admin_login
+
+    # ✅ 从配置中获取凭据
+    creds = ADMIN_CREDENTIALS.get(env)
+    if not creds:
+        raise Exception(f"未配置环境 '{env}' 的管理员凭据")
+
+    username = creds["username"]
+    password = creds["password"]
+
     result = admin_login(env, username, password)
     if result["success"]:
         token = result["token"]
         email = result.get("user_info", {}).get("email") or username or "unknown"
-
-        # ✅ 保存 token 和 email
         _admin_session.set_token(token, email=email)
         return token, email
     else:
         raise Exception(f"登录失败: {result['msg']}")
 
 
-# --- 核心执行函数 ---
 def execute_admin_operation(
         op_key: str,
         env: str,
         aid: str,
         points: int,
-        admin_username: str,
-        admin_password: str
+        # ❌ 不再需要 admin_username / admin_password
 ) -> Dict[str, Any]:
     """
     统一执行管理员操作（支持自动分批 + 操作记录）
     """
     if op_key not in ADMIN_OPERATIONS:
         result = {"success": False, "results": [{"success": False, "msg": "不支持的操作"}]}
-        # 🔽 记录非法操作尝试
         save_history({
             "operation": "未知操作",
-            "email": admin_username,
+            "email": "unknown",
             "target_id": aid,
             "result": "failed",
             "env": env,
@@ -113,12 +129,12 @@ def execute_admin_operation(
     op_name = op["name"]
 
     try:
-        token, email = _get_admin_token(env, admin_username, admin_password)
+        token, email = _get_admin_token(env)  # ✅ 不再传入用户名密码
     except Exception as e:
         result = {"success": False, "results": [{"success": False, "msg": str(e)}]}
         save_history({
             "operation": op_name,
-            "email": admin_username,
+            "email": "unknown",
             "target_id": aid,
             "result": "failed",
             "env": env,
@@ -145,13 +161,11 @@ def execute_admin_operation(
 
         try:
             res = requests.post(api_url, headers=headers, json=payload, timeout=10, verify=False)
-            # 解析响应
             try:
                 response_data = res.json()
             except json.JSONDecodeError:
                 response_data = {"raw": res.text, "status_code": res.status_code}
 
-            # 📝 记录本次操作历史（✅ 每次请求都审计）
             save_history({
                 "operation": op_name,
                 "email": email,
@@ -178,7 +192,6 @@ def execute_admin_operation(
         except Exception as e:
             error_msg = f"❌ 请求异常: {str(e)}"
             results.append({"success": False, "msg": error_msg})
-            # 🔽 记录异常
             save_history({
                 "operation": op_name,
                 "email": email,

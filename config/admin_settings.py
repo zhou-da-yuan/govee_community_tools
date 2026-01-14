@@ -11,6 +11,18 @@ ADMIN_AdminApiENV_CONFIG = {
     "pda": "pda-adminapi.govee.com"
 }
 
+# 管理员账号密码（按环境配置）
+ADMIN_CREDENTIALS = {
+    "dev": {
+        "username": "dayuan_zhou",
+        "password": "Govee12345"
+    },
+    "pda": {
+        "username": "dayuan_zhou",
+        "password": "Govee12345"
+    }
+}
+
 # 登录路径
 ADMIN_LOGIN_PATH = "/user/rest/v2/login"
 

@@ -26,8 +26,13 @@ class BatchOperationsPage(ttk.Frame):
         self.change_env_callback = change_env_callback
         self.session_manager = SessionManager()
 
-        self.op_map = {k: v["name"] for k, v in self.get_operations().items()}
-        self.op_map.pop("create_post")
+        # 优化：支持操作根据support_batch字段判断，默认支持
+        all_ops = self.get_operations()
+        self.op_map = {
+            k: v["name"]
+            for k, v in all_ops.items()
+            if v.get("support_batch", True)  # 默认支持
+        }
 
         self.logger = None  # 延迟绑定，在 setup_ui 后赋值
 

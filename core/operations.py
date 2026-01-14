@@ -13,77 +13,122 @@ OPERATIONS = {
         "name": "投诉话题",
         "url": lambda base: f"{base}/bff-app/v1/community/circle/topic/complaint",
         "method": "post",
-        "payload": lambda tid: {"communalId": int(tid), "causeId": 1, "communalType": 12, "content": ""}
+        "params": [{"name": "target_id", "label": "话题ID"}],
+        "payload": lambda **kw: {
+            "communalId": int(kw["target_id"]),
+            "causeId": 1,
+            "communalType": 12,
+            "content": ""
+        }
     },
     "complaint_video": {
         "name": "投诉视频",
         "url": lambda base: f"{base}/appco/v1/complaints",
         "method": "post",
-        "payload": lambda vid: {"content": "", "causeId": 1, "type": 2, "id": int(vid)}
+        "params": [{"name": "target_id", "label": "视频ID"}],
+        "payload": lambda **kw: {
+            "content": "",
+            "causeId": 1,
+            "type": 2,
+            "id": int(kw["target_id"])
+        }
     },
     "collect_diy_video": {
         "name": "收藏DIY视频",
         "url": lambda base: f"{base}/app/v1/diy-videos/collections",
         "method": "post",
-        "payload": lambda vid: {"videoId": int(vid)}
+        "params": [{"name": "target_id", "label": "视频ID"}],
+        "payload": lambda **kw: {"videoId": int(kw["target_id"])}
     },
     "like_diy_video": {
         "name": "点赞DIY视频",
         "url": lambda base: f"{base}/bi/rest/v2/evals/likes",
         "method": "post",
-        "payload": lambda vid: {"videoId": int(vid), "state": 1}
+        "params": [{"name": "target_id", "label": "视频ID"}],
+        "payload": lambda **kw: {"videoId": int(kw["target_id"]), "state": 1}
     },
     "like_post": {
         "name": "点赞帖子",
         "url": lambda base: f"{base}/bi/rest/v1/postings/spot",
         "method": "get",
-        "params": lambda pid: {'client': '5e972a68a408cada', 'type': 1, 'postId': pid}
+        "params": [{"name": "target_id", "label": "帖子ID"}],
+        "params_func": lambda **kw: {
+            'client': '5e972a68a408cada',
+            'type': 1,
+            'postId': kw["target_id"]
+        }
     },
     "collect_post": {
         "name": "收藏帖子",
         "url": lambda base: f"{base}/appco/v1/posting/collections",
         "method": "post",
-        "payload": lambda pid: {"postingId": str(pid), "state": 1}
+        "params": [{"name": "target_id", "label": "帖子ID"}],
+        "payload": lambda **kw: {"postingId": str(kw["target_id"]), "state": 1}
     },
     "complaint_post": {
         "name": "投诉帖子",
         "url": lambda base: f"{base}/appco/v1/complaints",
         "method": "post",
-        "payload": lambda pid: {"content": "", "causeId": 1, "type": 1, "id": int(pid)}
+        "params": [{"name": "target_id", "label": "帖子ID"}],
+        "payload": lambda **kw: {
+            "content": "",
+            "causeId": 1,
+            "type": 1,
+            "id": int(kw["target_id"])
+        }
     },
     "collect_playlist": {
         "name": "收藏播放列表",
         "url": lambda base: f"{base}/bff-app/v1/pixel-screen/share-list/collect",
         "method": "post",
-        "payload": lambda lid: {"id": int(lid), "state": 1}
+        "params": [{"name": "target_id", "label": "播放列表ID"}],
+        "payload": lambda **kw: {"id": int(kw["target_id"]), "state": 1}
     },
     "like_playlist": {
         "name": "点赞播放列表",
         "url": lambda base: f"{base}/bff-app/v1/pixel-screen/share-list/like",
         "method": "post",
-        "payload": lambda lid: {"id": int(lid), "state": 1}
+        "params": [{"name": "target_id", "label": "播放列表ID"}],
+        "payload": lambda **kw: {"id": int(kw["target_id"]), "state": 1}
     },
     "complaint_playlist": {
         "name": "投诉播放列表",
         "url": lambda base: f"{base}/bff-app/v1/pixel-screen/share-list/share/complaint",
         "method": "post",
-        "payload": lambda lid: {"causeId": 1, "communalId": int(lid), "communalType": 5, "content": ""}
+        "params": [{"name": "target_id", "label": "播放列表ID"}],
+        "payload": lambda **kw: {
+            "causeId": 1,
+            "communalId": int(kw["target_id"]),
+            "communalType": 5,
+            "content": ""
+        }
     },
     "like_light_effect": {
         "name": "点赞图片灯效",
         "url": lambda base: f"{base}/appco/v1/light-square/picture-effect/likes",
         "method": "post",
-        "payload": lambda effect_id: {"effectId": int(effect_id), "state": 1, "sku": ""}
+        "params": [{"name": "target_id", "label": "灯效ID"}],
+        "payload": lambda **kw: {
+            "effectId": int(kw["target_id"]),
+            "state": 1,
+            "sku": ""
+        }
     },
-    # 注意：create_post 不再需要 payload 函数，由 execute_operation 处理
     "create_post": {
         "name": "发布帖子",
         "url": lambda base: f"{base}/bff-app/v1/community/posting/details",
         "method": "post",
+        "support_batch": False,
         "support_single": True,
-        "params": ["count", "content", "circle_id", "topic_id"],  # 👈 新增两个参数
+        "params": [
+            {"name": "count", "label": "发布数量"},
+            {"name": "content", "label": "发布内容"},
+            {"name": "circle_id", "label": "圈子ID"},
+            {"name": "topic_id", "label": "话题ID"}
+        ],
         "defaults": {
             "content": "This is an automatically published test content.",
+            "count": "1"
         },
         "placeholders": {
             "content": "请输入要发布的内容...",
@@ -91,34 +136,61 @@ OPERATIONS = {
             "circle_id": "圈子ID（可选）",
             "topic_id": "话题ID（可选）"
         },
+        "payload": lambda **kw: build_create_post_payload(**kw)
     },
     "comment_post": {
         "name": "发布帖子评论",
         "url": lambda base: f"{base}/bff-app/v1/community/posting/detail/answers",
         "method": "post",
+        "support_batch": False,
         "support_single": True,
-        "params": ["count", "content", "target_id"],
+        "params": [
+            {"name": "target_id", "label": "目标帖子ID"},
+            {"name": "content", "label": "评论内容"},
+            {"name": "count", "label": "评论数量"}
+        ],
         "defaults": {
             "content": "This is the default comment content for testing",
+            "count": "1"
         },
         "placeholders": {
             "content": "请输入评论内容...",
             "count": "输入评论数量(默认1)",
             "target_id": "请输入目标帖子ID"
         },
-        "payload": lambda content, post_id: {
-            "originalContent": content,
-            "content": content,
+        "payload": lambda **kw: {
+            "originalContent": kw["content"],
+            "content": kw["content"],
             "urls": [],
             "color": "",
             "hasImg": False,
             "hasVideo": False,
             "isAtUser": 0,
-            "postId": str(post_id),
-            "firstCommentOriginal": content,
+            "postId": str(kw["target_id"]),
+            "firstCommentOriginal": kw["content"],
             "atUser": []
         }
     },
+    "follow_user": {
+        "name": "新增Followers",
+        "url": lambda base: f"{base}/appco/v1/users/subscription",
+        "method": "post",
+        "params": [{"name": "target_id", "label": "用户ID"}],
+        "payload": lambda **kw: {
+            "userId": str(kw["target_id"]),
+            "action": 1  # 1 表示关注
+        }
+    },
+    "create_devices_group": {
+        "name": "新增房间",
+        "url": lambda base: f"{base}/bff-app/v1/devices/groups",
+        "method": "post",
+        "support_single": True,
+        "params": [{"name": "count", "label": "创建数量"},
+                   {"name": "groupName","label":"房间名称"}
+                   ],
+        "payload": lambda **kw: {"groupName": str(kw["groupName"]), "key": "", "view": 0}
+    }
     # 需要两个参数，暂时先不做
     # "collect_music_create": {
     #     "name": "收藏音乐创作",
@@ -126,12 +198,6 @@ OPERATIONS = {
     #     "method": "post",
     #     "payload": lambda lid: {"musicShareId": str(lid), "state": 1}
     # },
-    "follow_user": {
-        "name": "新增Followers",
-        "url": lambda base: f"{base}/appco/v1/users/subscription",
-        "method": "post",
-        # 不再使用静态 payload，改为动态生成（需 myIdentity）
-    },
     # "get_aid": {
     #     "name": "获取 AID",
     #     "url": lambda base: f"{base}/bi/rest/v1/user-informations",
@@ -141,10 +207,12 @@ OPERATIONS = {
 }
 
 
-def build_create_post_payload(title_suffix: str, content_text: str, circle_id: int = -1, topic_id: int = -1):
-    """
-    构建发帖 payload，支持指定圈子和话题
-    """
+def build_create_post_payload(**kw):
+    """辅助函数：构建发布帖子的完整 payload"""
+    title_suffix = f"{int(time.time()) % 10000}"
+    content_text = kw.get("content", "Default auto post.")
+    circle_id = int(kw.get("circle_id", -1)) if kw.get("circle_id") else -1
+    topic_id = int(kw.get("topic_id", -1)) if kw.get("topic_id") else -1
     content_html = f"<p class=\"new-posting-content\">{content_text}</p>"
     content_v2_dict = {
         "content": content_text,
@@ -178,15 +246,8 @@ def execute_operation(
         session_manager: SessionManager,
         token: str,
         base_url: str,
-        **kwargs  # 支持额外参数，如 count, content, target_id 等
-) -> bool | dict[str, int | bool | list[
-    dict[str, str | bool | Any] | dict[str, str | bool] | dict[str, str | bool] | dict[str, str | bool]]]:
-    """
-    统一执行操作入口
-    支持：
-        - 单次操作（target_id）
-        - 批量操作（count, content）
-    """
+        **kwargs
+) -> bool | dict:
     op = OPERATIONS.get(op_key)
     if not op:
         logging.error(f"未知操作: {op_key}")
@@ -198,187 +259,86 @@ def execute_operation(
     op_name = op["name"]
 
     try:
-        if op_key == "create_post":
-            # 处理批量发帖
-            count = kwargs.get("count", 1)
-            content_text = kwargs.get("content", "This is an automatically published test content.。")
+        # 统一收集参数（包含 target_id, content, count 等）
+        collected_params = kwargs.copy()
 
-            # 👇 解析 circle_id 和 topic_id，转为 int；若无效则默认 -1
-            try:
-                circle_id = int(kwargs.get("circle_id", -1))
-            except (TypeError, ValueError):
-                circle_id = -1
-
-            try:
-                topic_id = int(kwargs.get("topic_id", -1))
-            except (TypeError, ValueError):
-                topic_id = -1
-
+        # 特殊处理：如果操作支持批量（如 create_post），则循环执行
+        if op.get("support_single", False):
+            count = int(collected_params.get("count", 1))
             success_count = 0
             results = []
 
             for i in range(count):
-                title_suffix = f"{int(time.time()) % 10000}-{i + 1}"
-                payload = build_create_post_payload(title_suffix, content_text, circle_id, topic_id)
+                # 每次可生成唯一内容（可选）
+                if "content" in collected_params:
+                    content = collected_params["content"]
+                    # 可加后缀避免重复，如 AutoPost-1234-1
+                    # 但由 payload 函数决定是否使用
 
-                try:
-                    res = session.post(url, headers=headers, json=payload)
-                    if res.status_code == 200:
-                        data = res.json()
-                        if data.get("status") == 200:
-                            post_id = data.get("data", {}).get("id", "未知")
-                            result = {
-                                "success": True,
-                                "post_id": post_id,
-                                "msg": f"发布成功 | Post ID: {post_id}"
-                            }
-                        else:
-                            msg = data.get("message", "未知错误")
-                            result = {
-                                "success": False,
-                                "post_id": "失败",
-                                "msg": f"发布失败: {msg}"
-                            }
-                    else:
-                        result = {
-                            "success": False,
-                            "post_id": "失败",
-                            "msg": f"HTTP {res.status_code}"
-                        }
+                # 调用 payload 函数（传入当前循环的上下文）
+                payload = op["payload"](**collected_params)
 
-                except Exception as e:
-                    result = {
-                        "success": False,
-                        "post_id": "异常",
-                        "msg": f"异常: {str(e)}"
-                    }
-                    logging.error(f"发帖异常 (第{i + 1}条): {str(e)}")
+                res = session.post(url, headers=headers, json=payload)
+                success = res.status_code == 200 and res.json().get("status") == 200
+                msg = "成功" if success else f"失败: {res.text[:100]}"
 
-                # 无论成功失败都记录历史
+                result = {"success": success, "msg": msg}
+                results.append(result)
+                if success:
+                    success_count += 1
+
                 save_history({
                     "operation": op_name,
-                    "email": session.headers.get("X-User-Email", "unknown"),
-                    "target_id": result["post_id"],
-                    "result": "success" if result["success"] else "failed",
+                    "email": headers.get("X-User-Email", "unknown"),
+                    "target_id": "batch",
+                    "result": "success" if success else "failed",
                     "env": kwargs.get("env"),
-                    "details": result["msg"]
+                    "details": msg
                 })
 
-                results.append(result)
                 time.sleep(random.uniform(1.5, 3.5))
 
-                # 统计
-            success_count = sum(1 for r in results if r["success"])
-            all_success = success_count == count
-            any_success = success_count > 0
-
             return {
-                "success": any_success,  # 至少一条成功
+                "success": success_count > 0,
                 "total": count,
                 "success_count": success_count,
-                "all_success": all_success,
+                "all_success": success_count == count,
                 "results": results
             }
 
-        elif op_key == "comment_post":
-            # 在 execute_operation 函数中，处理 comment_post 的逻辑已兼容
-            target_id = kwargs.get("target_id")
-            if not target_id:
-                raise ValueError("缺少 target_id")
-            content = kwargs.get("content", "This is the default comment content for testing")
-
-            payload = op["payload"](content, target_id)
-            res = session.post(url, headers=headers, json=payload)
-
-            result = res.status_code == 200 and res.json().get("status") == 200
-
-            # 记录历史
-            save_history({
-                "operation": op_name,
-                "email": session.headers.get("X-User-Email", "unknown"),
-                "target_id": target_id,
-                "result": "success" if result else "failed",
-                "env": kwargs.get("env"),
-                "details": res.json()
-            })
-
-            return result
-
-        elif op_key == "follow_user":
-            target_identity = kwargs.get("target_id")
-            if not target_identity:
-                raise ValueError("缺少 target_id（被关注用户的 identity）")
-
-            # 👉 先获取当前用户的 AID (myIdentity)
-            aid_result = get_user_aid(session_manager, token, base_url)
-            if not aid_result["success"]:
-                logging.error(f"获取 myIdentity 失败: {aid_result['msg']}")
-                save_history({
-                    "operation": op_name,
-                    "email": session.headers.get("X-User-Email", "unknown"),
-                    "target_id": target_identity,
-                    "result": "failed",
-                    "env": kwargs.get("env"),
-                    "details": f"获取 myIdentity 失败: {aid_result['msg']}"
-                })
-                return False
-
-            my_identity = aid_result["aid"]
-
-            # 构造 payload
-            payload = {
-                "identity": str(target_identity),
-                "identityType": 2,
-                "subscribe": 1,
-                "myIdentity": str(my_identity)  # 👈 新增字段
-            }
-
-            res = session.post(url, headers=headers, json=payload)
-            result = res.status_code == 200 and res.json().get("status") == 200
-
-            save_history({
-                "operation": op_name,
-                "email": session.headers.get("X-User-Email", "unknown"),
-                "target_id": target_identity,
-                "result": "success" if result else "failed",
-                "env": kwargs.get("env"),
-                "details": res.json() if result else str(res.text)
-            })
-
-            return result
-
         else:
-            # 处理其他单次操作
-            target_id = kwargs.get("target_id")
-            if not target_id:
-                raise ValueError("缺少 target_id")
-
+            # 单次操作
             if op["method"] == "get":
-                params = op["params"](target_id)
+                # 使用 params_func 或默认从 target_id 构造
+                if "params_func" in op:
+                    params = op["params_func"](**collected_params)
+                else:
+                    # 默认：GET 操作通常只需要 target_id
+                    params = {"postId": collected_params.get("target_id")}
                 res = session.get(url, headers=headers, params=params)
             else:
-                payload = op["payload"](target_id)
+                # POST 操作：调用 payload 函数
+                payload = op["payload"](**collected_params)
                 res = session.post(url, headers=headers, json=payload)
 
-            result = res.status_code == 200 and res.json().get("status") == 200
+            success = res.status_code == 200 and res.json().get("status") == 200
 
-            # 记录历史
             save_history({
                 "operation": op_name,
-                "email": session.headers.get("X-User-Email", "unknown"),
-                "target_id": target_id,
-                "result": "success" if result else "failed",
+                "email": headers.get("X-User-Email", "unknown"),
+                "target_id": collected_params.get("target_id", "N/A"),
+                "result": "success" if success else "failed",
                 "env": kwargs.get("env"),
-                "details": res.json()
+                "details": res.json() if success else res.text
             })
 
-            return result
+            return success
 
     except Exception as e:
         logging.error(f"操作执行失败 [{op_name}]: {str(e)}")
         save_history({
             "operation": op_name,
-            "email": session.headers.get("X-User-Email", "unknown"),
+            "email": headers.get("X-User-Email", "unknown"),
             "target_id": kwargs.get("target_id", "N/A"),
             "result": "failed",
             "env": kwargs.get("env"),

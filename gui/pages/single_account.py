@@ -105,20 +105,36 @@ class SingleAccountPage(ttk.Frame):
         operations = {}
         for key, op in OPERATIONS.items():
             if op.get("support_single", False):
+                # 处理 params 为 list[dict] 的新格式
+                processed_params = []
+                for p in op.get("params", []):
+                    if isinstance(p, str):
+                        # 兼容旧格式（可选）
+                        processed_params.append({"name": p, "label": p.title()})
+                    else:
+                        processed_params.append(p)
+
                 operations[key] = {
                     "name": op["name"],
                     "description": op.get("description", ""),
-                    "params": op["params"],
+                    "params": processed_params,  # 现在是带 label 的 dict 列表
                     "type": "user",
                     "defaults": op.get("defaults", {}),
                     "placeholders": op.get("placeholders", {})
                 }
+        # 同样处理 ADMIN_OPERATIONS（略，结构相同）
         for key, op in ADMIN_OPERATIONS.items():
             if op.get("support_single", False):
+                processed_params = []
+                for p in op.get("params", []):
+                    if isinstance(p, str):
+                        processed_params.append({"name": p, "label": p.title()})
+                    else:
+                        processed_params.append(p)
                 operations[key] = {
                     "name": op["name"],
                     "description": op.get("description", ""),
-                    "params": op["params"],
+                    "params": processed_params,
                     "type": "admin",
                     "defaults": op.get("defaults", {}),
                     "placeholders": op.get("placeholders", {})
@@ -146,43 +162,35 @@ class SingleAccountPage(ttk.Frame):
             widget.destroy()
         self.param_widgets.clear()
 
-        params = op.get("params", [])
-        label_map = {
-            "aid": "用户 AID",
-            "points": "积分数量",
-            "sn": "设备 SN",
-            "count": "发布数量",
-            "content": "发布内容",
-            "target_id": "目标帖子ID",
-            "circle_id": "圈子ID",
-            "topic_id": "话题ID"
-        }
+        params = op.get("params", [])  # 现在是 [{"name": ..., "label": ...}, ...]
 
         defaults = op.get("defaults", {})
         placeholders = op.get("placeholders", {})
 
-        # 统一采用双列布局：每行最多两个参数
-        for idx, param in enumerate(params):
-            row = idx // 2  # 每两列换一行
-            col_offset = (idx % 2) * 2  # 偶数索引 → col 0/1，奇数索引 → col 2/3
+        # 双列布局
+        for idx, param_info in enumerate(params):
+            param_name = param_info["name"]
+            label_text = param_info["label"]  # 👈 直接使用定义好的 label
 
-            label_text = label_map.get(param, param.title())
+            row = idx // 2
+            col_offset = (idx % 2) * 2
+
             tk.Label(self.param_frame, text=label_text).grid(
                 row=row, column=col_offset, padx=5, pady=5, sticky="e"
             )
 
             entry = PlaceholderEntry(
                 self.param_frame,
-                placeholder=placeholders.get(param, ""),
-                width=28,  # 稍微窄一点，适应两列
+                placeholder=placeholders.get(param_name, ""),
+                width=28,
                 font=("Consolas", 10)
             )
             entry.grid(row=row, column=col_offset + 1, padx=5, pady=5, sticky="w")
 
-            if param in defaults:
-                entry.set(defaults[param])
+            if param_name in defaults:
+                entry.set(defaults[param_name])
 
-            self.param_widgets[param] = entry
+            self.param_widgets[param_name] = entry
 
     def start_operation(self):
         selected_name = self.op_combo.get()
@@ -196,34 +204,39 @@ class SingleAccountPage(ttk.Frame):
 
         email = self.email_entry.get().strip()
         password = self.password_entry.get().strip()
-        client_id = self.client_id_entry.get().strip()  # 获取 ClientId
+        client_id = self.client_id_entry.get().strip()
         session_state.clientId = client_id
         session_state.email = email
         session_state.password = password
 
         base_url = self.get_base_url()
 
+        # ✅ 自动收集所有参数
+        kwargs = {}
+        for param_name, entry_widget in self.param_widgets.items():
+            value = entry_widget.get().strip()
+            if value:  # 只传非空值（或根据需求改为 always 传）
+                kwargs[param_name] = value
+
         if op["type"] == "admin":
             thread = threading.Thread(
                 target=self.run_admin_operation,
                 args=(op_key, email, password, base_url, self.current_env),
+                kwargs=kwargs,  # 👈 传入参数
                 daemon=True
             )
         else:
             thread = threading.Thread(
                 target=self.run_user_operation,
                 args=(op_key, email, password, base_url, client_id, self.current_env),
+                kwargs=kwargs,  # 👈 传入参数
                 daemon=True
             )
         thread.start()
 
-    def run_user_operation(self, op_key, email, password, base_url, client_id, current_env):
+    def run_user_operation(self, op_key, email, password, base_url, client_id, current_env, **kwargs):
         if not email or not password:
             self.logger.error("❌ 请填写邮箱和密码")
-            messagebox.showerror("❌ 错误", "请填写邮箱和密码")
-            return
-        if not op_key:
-            self.logger.error("❌ 未选择有效操作")
             return
 
         self.logger.info(f"🚀 开始执行用户操作: {self.operations[op_key]['name']}")
@@ -235,140 +248,53 @@ class SingleAccountPage(ttk.Frame):
             self.logger.error(f"❌ 登录失败: {str(e)}")
             return
 
-        # === 特殊处理：发帖 ===
-        if op_key == "create_post":
-            try:
-                count = max(1, min(100, int(self.param_widgets["count"].get())))
-            except:
-                count = 1
-            content = self.param_widgets["content"].get().strip() or "This is an automatically published test content."
-
-            # 新增：读取 circle_id 和 topic_id
-            circle_id_str = self.param_widgets["circle_id"].get().strip()
-            topic_id_str = self.param_widgets["topic_id"].get().strip()
-
-            # 尝试转为整数，失败则用默认 -1（后端会处理）
-            try:
-                circle_id = int(circle_id_str) if circle_id_str.strip() != "" else -1
-            except ValueError:
-                circle_id = -1
-
-            try:
-                topic_id = int(topic_id_str) if topic_id_str.strip() != "" else -1
-            except ValueError:
-                topic_id = -1
-
+        # ✅ 直接传递所有参数给 execute_operation
+        try:
             result = execute_operation(
-                op_key,
-                self.session_manager,
-                token,
-                base_url,
-                count=count,
-                content=content,
-                circle_id=circle_id,
-                topic_id=topic_id,
-                env=current_env
+                op_key=op_key,
+                session_manager=self.session_manager,
+                token=token,
+                base_url=base_url,
+                env=current_env,
+                **kwargs  # 👈 全部参数透传
             )
 
-            for i, r in enumerate(result["results"]):
-                status = "✅" if r["success"] else "❌"
-                self.logger.info(f"{status} 第 {i + 1} 篇: {r['msg']}")
-
-            msg = "🎉 全部成功！" if result["all_success"] else "⚠️ 部分失败："
-            self.logger.info(f"\n{msg}成功 {result['success_count']}/{result['total']} 篇。")
-
-        # === 新增：处理评论帖子 ===
-        elif op_key == "comment_post":
-            try:
-                count = max(1, min(100, int(self.param_widgets["count"].get())))  # 限制最多100条评论
-            except:
-                count = 1
-            content = self.param_widgets["content"].get().strip()
-            if not content:
-                content = "This is the default comment content for testing"
-
-            target_id = self.param_widgets["target_id"].get().strip()
-            if not target_id:
-                self.logger.error("❌ 请输入目标帖子ID")
-                messagebox.showerror("❌ 错误", "请输入目标帖子ID")
-                return
-
-            self.logger.info(f"⏳ 开始发布 {count} 条评论到帖子 {target_id}...")
-
-            success_count = 0
-            results = []
-
-            for i in range(count):
-                try:
-                    res = execute_operation(
-                        op_key="comment_post",
-                        session_manager=self.session_manager,
-                        token=token,
-                        base_url=base_url,
-                        target_id=target_id,
-                        content=content,
-                        env=current_env
-                    )
-
-                    if res is True:
-                        msg = f"评论 {i + 1}: 发布成功"
-                        success = True
-                        success_count += 1
-                    else:
-                        msg = f"评论 {i + 1}: 发布失败"
-                        success = False
-
-                except Exception as e:
-                    msg = f"评论 {i + 1}: 异常 {str(e)}"
-                    success = False
-                    self.logger.error(f"评论异常: {str(e)}")
-
-                results.append({"success": success, "msg": msg})
-                self.logger.info("✅ 评论成功" + " " + msg if success else "❌ 评论失败" + " " + msg)
-                time.sleep(random.uniform(1.5, 3.5))
-
-            all_success = success_count == count
-            status = "🎉" if all_success else "⚠️"
-            self.logger.info(f"\n{status} 批量评论完成！成功 {success_count}/{count} 条。")
-
-        # === 处理其他普通操作（如点赞、收藏等）===
-        else:
-            target_id = self.param_widgets.get("target_id", {}).get("get", lambda: "")().strip()
-            if not target_id:
-                self.logger.error("❌ 请输入目标ID")
-                return
-
-            result = execute_operation(op_key, self.session_manager, token, base_url, target_id=target_id)
-            if result["success"]:
+            # 统一日志处理（兼容 dict 和 bool）
+            if isinstance(result, dict) and "results" in result:
+                for i, r in enumerate(result["results"]):
+                    status = "✅" if r["success"] else "❌"
+                    self.logger.info(f"{status} 第 {i + 1} 次: {r['msg']}")
+                msg = "🎉 全部成功！" if result["all_success"] else "⚠️ 部分失败："
+                self.logger.info(f"\n{msg}成功 {result['success_count']}/{result['total']} 次。")
+            elif result is True:
                 self.logger.info("✅ 操作成功")
             else:
-                self.logger.error(f"❌ 操作失败: {result['msg']}")
+                self.logger.error("❌ 操作失败")
 
-    def run_admin_operation(self, op_key, email, password, base_url, current_env):
+        except Exception as e:
+            self.logger.error(f"❌ 操作异常: {str(e)}")
+
+    def run_admin_operation(self, op_key, email, password, base_url, current_env, **kwargs):
         op_name = self.operations[op_key]["name"]
         self.logger.info(f"🚀 开始执行管理员操作: {op_name}")
 
-        aid_entry = self.param_widgets.get("aid")
-        if not aid_entry:
-            self.logger.error("❌ 错误：该操作需要 AID 参数")
-            return
-
-        aid = aid_entry.get().strip()
-
+        # 尝试从 kwargs 获取 aid，若无则尝试自动获取
+        aid = kwargs.get("aid", "").strip()
         if not aid and email and password:
             self.logger.info("🔍 AID 未输入，尝试自动获取...")
             try:
                 user_token_result = self.session_manager.login_user(email, password, base_url)
-                if not user_token_result["success"]:
-                    self.logger.error("❌ 自动获取 AID 失败：登录失败")
-                    return
-                user_token = user_token_result["token"]
-                aid_result = get_user_aid(self.session_manager, user_token, base_url)
-                if aid_result["success"]:
-                    aid = aid_result["aid"]
-                    self.logger.info(f"✅ 自动获取 AID 成功: {aid}")
+                if user_token_result["success"]:
+                    user_token = user_token_result["token"]
+                    aid_result = get_user_aid(self.session_manager, user_token, base_url)
+                    if aid_result["success"]:
+                        aid = aid_result["aid"]
+                        self.logger.info(f"✅ 自动获取 AID 成功: {aid}")
+                    else:
+                        self.logger.error(f"❌ 自动获取 AID 失败: {aid_result['msg']}")
+                        return
                 else:
-                    self.logger.error(f"❌ 自动获取 AID 失败: {aid_result['msg']}")
+                    self.logger.error("❌ 自动获取 AID 失败：登录失败")
                     return
             except Exception as e:
                 self.logger.error(f"❌ 自动获取 AID 异常: {str(e)}")
@@ -377,20 +303,22 @@ class SingleAccountPage(ttk.Frame):
             self.logger.error("❌ 请输入 AID 或提供邮箱密码以自动获取")
             return
 
+        # 从 kwargs 获取 points
+        points_str = kwargs.get("points", "").strip()
         try:
-            points = int(self.param_widgets["points"].get())
-        except ValueError:
+            points = int(points_str)
+            if points <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
             self.logger.error("❌ 积分数必须是正整数")
             return
 
-        self.logger.info(f"⏳ 操作执行中，请等待...")
+        # 执行操作（只传必要参数）
         admin_result = execute_admin_operation(
             op_key=op_key,
-            env=self.current_env,
+            env=current_env,
             aid=aid,
             points=points,
-            admin_username="dayuan_zhou",
-            admin_password="Govee12345",
         )
 
         for r in admin_result["results"]:
